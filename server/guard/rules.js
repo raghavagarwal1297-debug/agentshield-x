@@ -30,6 +30,15 @@ export function loadRules() {
     value.problems.push(`rules file is not valid JSON: ${e.message}`);
     raw = {};
   }
+  // A wrong top-level shape must be reported, not silently load nothing.
+  if (!value.problems.length && (Array.isArray(raw) || !raw || typeof raw !== 'object' || !Array.isArray(raw.rules))) {
+    value.problems.push(`wrong structure: expected { "version": 1, "bonuses": {...}, "rules": [ ... ] }, got ${Array.isArray(raw) ? 'a bare array' : 'an object without a "rules" array'}`);
+    raw = {};
+  }
+  if (raw.bonuses !== undefined && (typeof raw.bonuses !== 'object' || raw.bonuses === null || Array.isArray(raw.bonuses))) {
+    value.problems.push('"bonuses" must be an object like { "hidden_text": 25, "obfuscation": 15 }');
+    raw = { ...raw, bonuses: {} };
+  }
 
   for (const [k, v] of Object.entries(raw.bonuses || {})) {
     if (k in DEFAULT_BONUSES && Number.isFinite(v) && v >= 0 && v <= 100) value.bonuses[k] = v;

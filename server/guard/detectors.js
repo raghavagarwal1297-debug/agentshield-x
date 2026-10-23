@@ -26,8 +26,15 @@ export function loadDetectors() {
   try { raw = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) {
     value.problems.push(`detectors file is not valid JSON: ${e.message}`);
   }
+  // A wrong top-level shape must be reported, not silently load nothing.
+  if (Array.isArray(raw) || !raw || typeof raw !== 'object' || !Array.isArray(raw.detectors)) {
+    if (!value.problems.length) {
+      value.problems.push(`wrong structure: expected { "version": 1, "detectors": [ ... ] }, got ${Array.isArray(raw) ? 'a bare array' : 'an object without a "detectors" array'}`);
+    }
+    raw = { detectors: [] };
+  }
   const seen = new Set();
-  for (const [i, d] of (raw.detectors || []).entries()) {
+  for (const [i, d] of raw.detectors.entries()) {
     const where = `detector #${i + 1}${d?.id ? ` (${d.id})` : ''}`;
     if (!d || typeof d.id !== 'string' || !/^[A-Z0-9-]+$/.test(d.id)) { value.problems.push(`${where}: id must be UPPERCASE letters/digits/dashes`); continue; }
     if (seen.has(d.id)) { value.problems.push(`${where}: duplicate id`); continue; }
