@@ -14,9 +14,9 @@ const TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 20000);
 
 const provider = () => (process.env.LLM_PROVIDER || 'groq').toLowerCase();
 export const agentModel = () =>
-  process.env.AGENT_MODEL || (provider() === 'gemini' ? 'gemini-2.5-flash' : 'llama-3.3-70b-versatile');
+  process.env.AGENT_MODEL || (provider() === 'gemini' ? 'gemini-2.5-flash' : 'openai/gpt-oss-120b');
 export const judgeModel = () =>
-  process.env.JUDGE_MODEL || (provider() === 'gemini' ? 'gemini-2.5-flash-lite' : 'llama-3.1-8b-instant');
+  process.env.JUDGE_MODEL || (provider() === 'gemini' ? 'gemini-2.5-flash-lite' : 'openai/gpt-oss-20b');
 
 export function llmInfo() {
   return { provider: provider(), agent_model: agentModel(), judge_model: judgeModel() };
@@ -48,7 +48,27 @@ export function parseJSON(text) {
   throw new LLMError(`LLM did not return valid JSON: ${text.slice(0, 120)}`);
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const MAX_RATE_RETRIES = Number(process.env.LLM_RATE_RETRIES || 3);
+
+// POST with retry on HTTP 429 and network errors (free tiers have small tokens-per-minute limits).
+// Waits for the provider's "retry-after" hint, capped at 30 s per wait.
 async function postJSON(url, headers, body) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await postOnce(url, headers, body);
+    } catch (e) {
+      const retryable = e instanceof LLMError && (e.status === 429 || e.network);
+      if (!retryable || attempt >= MAX_RATE_RETRIES) throw e;
+      const hinted = Number(e.retryAfter || (e.message.match(/try again in ([\d.]+)s/)?.[1]));
+      const waitMs = Math.min(30000, (hinted > 0 ? hinted * 1000 : 5000 * (attempt + 1)) + 500);
+      console.warn(`[llm] ${e.network ? 'network error' : 'rate limited'}, retrying in ${Math.round(waitMs / 100) / 10}s`);
+      await sleep(waitMs);
+    }
+  }
+}
+
+async function postOnce(url, headers, body) {
   let res;
   try {
     res = await fetch(url, {
@@ -58,10 +78,17 @@ async function postJSON(url, headers, body) {
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (e) {
-    throw new LLMError(`LLM request failed: ${e.name === 'TimeoutError' ? 'timeout' : e.message}`);
+    const err = new LLMError(`LLM request failed: ${e.name === 'TimeoutError' ? 'timeout' : e.message}`);
+    err.network = true;
+    throw err;
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new LLMError(`LLM HTTP ${res.status}: ${data.error?.message || JSON.stringify(data).slice(0, 200)}`);
+  if (!res.ok) {
+    const err = new LLMError(`LLM HTTP ${res.status}: ${data.error?.message || JSON.stringify(data).slice(0, 200)}`);
+    err.status = res.status;
+    err.retryAfter = res.headers.get('retry-after');
+    throw err;
+  }
   return data;
 }
 
