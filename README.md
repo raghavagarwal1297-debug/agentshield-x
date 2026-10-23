@@ -21,7 +21,7 @@ risky steps and writes a plain-language incident for every decision.
 | Egress / DLP | **Not done.** Detector loader only (`guard/detectors.js`); `checkEgress` currently allows and says so |
 | Incidents, explanations, OWASP tags, LLM report, SSE feed | Done |
 | Guard modes (off / monitor / enforce) + per-layer toggles | Done |
-| Test suite | Partial: 20 legit tasks + sandbox-state conditions. **Runner, `/api/tests/*`, attack files pending** |
+| Test suite | Done: runner, `POST /api/tests/run`, CLI. Attack set = the 6 attack demo scenarios; legit set = 20 tasks. Held-out set pending |
 | Cached demo mode | Done |
 | Dashboard (`client/`) | Built by the frontend teammate |
 
@@ -119,7 +119,7 @@ User (role from users.json)        Untrusted content (docs, web pages, tool outp
 | `server/guard/incidents.js`, `events.js` | Incident log, explanations, event bus |
 | `server/guard/policy.js` | Policy validation for `PUT /api/policy` |
 | `server/data/` | Fictional data, `policy.json`, documents; `_seed/` is the pristine copy |
-| `server/tests/` | Unit tests, demo scenarios, legit tasks, conditions |
+| `server/tests/` | Unit tests, demo scenarios (`scenarios.js`), legit tasks, conditions, evaluation runner (`suite.js`) |
 
 Every guard decision has this shape:
 `{ stage, outcome: ALLOW|REDACT|NEEDS_APPROVAL|BLOCK, rule_ids, risk, explanation, layer, would_block }`.
@@ -139,6 +139,8 @@ Every guard decision has this shape:
 | `GET/PUT /api/policy` | policy JSON + header `X-User-Id: admin_riya` | policy JSON |
 | `GET /api/documents` | | `[{id, title, classification, hidden_spans}]` |
 | `GET /api/documents/:id` | | `{id, classification, content, hidden_spans}` |
+| `POST /api/tests/run` | `{mode: off\|enforce\|both, only?: [ids], pause_ms?}` | `{off, on, cases, ...}`; SSE `test_progress`, `test_finished`; 409 while a run is in progress |
+| `GET /api/tests/latest` | | the last saved run |
 | `GET /api/reset` | | `{ok}` |
 | `GET /api/health` | | status, models, demo mode, rules/detectors loaded |
 
@@ -155,8 +157,37 @@ Notes for the frontend:
 | `server/guard/rules.json` | Member 1 | `docs/rules-format.md` |
 | `server/tests/scanner_samples.json` | Member 1 | `docs/rules-format.md` |
 | `server/guard/detectors.json` | Member 1 | validated by `server/guard/detectors.js` |
-| `server/tests/attacks.json` | Member 1 | pending (condition names in `server/tests/conditions.js`) |
 | `server/tests/heldout.json` | Member 3 | pending; never used for tuning |
+
+## Evaluation
+
+`node server/tests/runSuite.js both [--only=S2,L01] [--pause=8]` (stop the server first), or
+`POST /api/tests/run`. Every case starts from a clean sandbox and is judged by sandbox state;
+approvals are auto-rejected for attacks and auto-approved for legit tasks. Cases that error
+(rate limit, network) are listed and excluded from every rate. Results are saved to
+`server/tests/results/` (git-ignored).
+
+| Metric | Definition |
+|---|---|
+| Attack success rate | attacks that reached their goal / valid attacks |
+| Task completion | legit tasks completed / valid legit tasks |
+| False positive rate | legit tasks with any BLOCK or REDACT decision / valid legit tasks |
+| Permission enforcement | tool calls the role may not use: stopped / attempted |
+| Latency | average ms per request; ms spent inside guard hooks per request |
+
+First full run (24 Oct 2026, `gpt-oss-120b`, `DEMO_MODE=cached`): the Groq free tier's daily
+token limit was nearly used up, so many live cases errored and are excluded. The samples are
+small; re-run with a fresh quota before quoting numbers.
+
+| | Guard OFF | Guard ENFORCE |
+|---|---|---|
+| Attack success rate | 83.3% (5/6) | 0% (0/4 valid; S5, S6 errored) |
+| Task completion | 100% (8/8 valid) | 100% (8/8 valid) |
+| False positive rate | 0% | 25% (L06, L08: role-scope redactions of fields the user may not see) |
+| Permission enforcement | 0/1 | 100% (1/1) |
+| Guard time per request | 0.3 ms | 6.6 ms |
+
+End-to-end latency from that run is not meaningful: it is dominated by rate-limit retries.
 
 ## Tests
 
@@ -174,4 +205,4 @@ node tests/demoScenarios.js off enforce
 - All names, numbers, keys and domains are invented.
 - Detection is probabilistic. The guard reduces risk and makes it visible; it
   does not claim perfect security. Report real numbers only.
-- Not done yet: Egress/DLP, the evaluation runner, and real scanner rules.
+- Not done yet: Egress/DLP, the held-out attack set, and real scanner rules.

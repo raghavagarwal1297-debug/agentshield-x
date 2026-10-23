@@ -1,5 +1,6 @@
 // AgentShield X - Express server: routes, SSE feed and guard pipeline.
 import 'dotenv/config';
+import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import { readJSON, writeJSON } from './store.js';
@@ -15,6 +16,7 @@ import { listIncidents, getIncident, writeReport } from './guard/incidents.js';
 import { findHiddenSpans } from './guard/normalize.js';
 import { validatePolicy } from './guard/policy.js';
 import { bus } from './guard/events.js';
+import { runSuite, isRunning } from './tests/suite.js';
 import { LLMError, llmInfo } from './llm.js';
 
 const app = express();
@@ -44,7 +46,7 @@ app.post('/api/guard', (req, res) => {
 
 // Live feed (Server-Sent Events): decision, incident, approval_created,
 // approval_resolved, guard_changed. Sends the guard state on connect.
-const STREAM_EVENTS = ['decision', 'incident', 'approval_created', 'approval_resolved', 'guard_changed'];
+const STREAM_EVENTS = ['decision', 'incident', 'approval_created', 'approval_resolved', 'guard_changed', 'test_progress', 'test_finished'];
 app.get('/api/stream', (req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -83,6 +85,34 @@ app.put('/api/policy', (req, res) => {
   if (errors.length) return res.status(400).json({ error: 'Invalid policy', problems: errors });
   writeJSON('policy.json', req.body);
   res.json(req.body);
+});
+
+// Evaluation: POST /api/tests/run { mode: off|enforce|both, pause_ms?, only?: [case ids] }
+// -> { off, on, cases, ... }. Resets the sandbox per case, so do not run it
+// during a live demo. Progress is streamed as test_progress events.
+app.post('/api/tests/run', async (req, res) => {
+  const { mode = 'both', pause_ms = 0, only = null, include_heldout = false } = req.body || {};
+  if (include_heldout) return res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' });
+  const modes = { off: ['off'], enforce: ['enforce'], both: ['off', 'enforce'] }[mode];
+  if (!modes) return res.status(400).json({ error: 'mode must be off, enforce or both' });
+  if (isRunning()) return res.status(409).json({ error: 'A test run is already in progress' });
+  try {
+    const result = await runSuite({
+      modes, only, pauseMs: Math.min(Number(pause_ms) || 0, 60000),
+      onProgress: (p) => bus.emit('test_progress', p),
+    });
+    bus.emit('test_finished', { off: result.off, on: result.on, finished: result.finished });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.get('/api/tests/latest', (req, res) => {
+  try {
+    res.json(JSON.parse(fs.readFileSync(new URL('./tests/results/latest.json', import.meta.url), 'utf8')));
+  } catch {
+    res.status(404).json({ error: 'No test run yet' });
+  }
 });
 
 // Documents the user can attach. hidden_spans lets the UI highlight hidden text.

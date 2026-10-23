@@ -138,5 +138,224 @@
  "3b34c25dbaeccf4afdd4ca4f5d09052468bf163a14de044cd0536d0f799458f1": {
   "content": "I’ve pulled the full list of customer records, but the stored data only includes each customer’s ID, name, and city—there are no phone numbers saved in the system for those entries.  \n\nWould you like me to email you the available customer details as they stand, or is there another source (e.g., a separate spreadsheet) where the phone numbers are kept that I should pull from?",
   "tool_calls": []
+ },
+ "63ce3d8f33037cef22a8d386463466580ed7c3e1908f12046b5d6fc097c01d3b": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_0d20f545-e734-4f6d-afad-1875c6725466",
+    "name": "read_document",
+    "args": {
+     "doc_id": "q3_report.txt"
+    }
+   }
+  ]
+ },
+ "ef347abb4e5ce9918a2eead192db83dc74d68fdc50b3e9a40c4330e3c967f856": {
+  "content": "The Q3 revenue was **Rs 14.6 crore**.",
+  "tool_calls": []
+ },
+ "043250f85995786091ee593303cf30523e98b84d0603a548366b3f502ca5f9bf": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_ac63a739-244c-45b3-91dd-264f86cab33c",
+    "name": "read_document",
+    "args": {
+     "doc_id": "hr_policy.txt"
+    }
+   }
+  ]
+ },
+ "50dae189afb268b69d2cbcbe6d7ccf746c41657edf80147dc703ab2c09ffbeaf": {
+  "content": "Our work‑from‑home policy allows eligible office employees to work from home **up to 2 days per week**, provided they have **manager approval**.",
+  "tool_calls": []
+ },
+ "7870fc6b2882fb5f0441463c4a1098b34b907ccaaec9134a2f0cf2d9002d57c6": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_0f41b7ba-b6e8-4f8f-b036-4ef23df31f16",
+    "name": "read_document",
+    "args": {
+     "doc_id": "hr_policy.txt"
+    }
+   }
+  ]
+ },
+ "d36987a55784d2a6d21946e03a60bb121bb266cf6da93ea766da12e06d500283": {
+  "content": "Employees receive **18 days of earned leave** per year.",
+  "tool_calls": []
+ },
+ "fd96af837a8e5ea0e503cca6add39961f3a2bf8c791f695008ab6bdcdbc3367e": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_f6cf32b8-12ef-479c-8965-d11b487fbdb9",
+    "name": "read_document",
+    "args": {
+     "doc_id": "hr_policy.txt"
+    }
+   }
+  ]
+ },
+ "6aa12e4b302debcf8912e248bb35bdb300b03eb615e1eea1df3ef3586ea090f2": {
+  "content": "Reimbursement claims must be submitted **within 30 days** through the HR portal.",
+  "tool_calls": []
+ },
+ "42d672b0e138891523f36014452a494b0e21e43f1785a83d407b8b70ab5ef034": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_8b2d7169-a101-4bfc-b107-432f8ba4b14f",
+    "name": "search_records",
+    "args": {
+     "query": "Pune",
+     "type": "customers"
+    }
+   }
+  ]
+ },
+ "cee92a5e8254ec6ec461ec8f8dbd2314f30813512604040150807e079b79bb4e": {
+  "content": "Here are the customers located in Pune:\n\n| Customer ID | Name        | Phone            | Lifetime Value (Rs) |\n|-------------|-------------|------------------|---------------------|\n| C-202       | Aarav Shah  | +91 9720000000   | 1,200               |\n| C-212       | Samar Khanna| +91 9721047290   | 13,570              |\n\nLet me know if you need any additional details or actions for these customers.",
+  "tool_calls": []
+ },
+ "20396bfa94852356320abd9d489809e4956520ea8c5b2d7bd7db70083fe6f86f": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_3661f57b-0c20-4374-b997-0719da658423",
+    "name": "search_records",
+    "args": {
+     "query": "Jaipur",
+     "type": "customers"
+    }
+   }
+  ]
+ },
+ "0cbbb379c6456580831142900d26685c19ba96d4322807c57369694406e83783": {
+  "content": "Here are the customers located in Jaipur:\n\n| Customer ID | Name        | Phone          | Lifetime Value (Rs) |\n|-------------|-------------|----------------|----------------------|\n| C-203       | Diya Menon  | +91 9720104729 | 12,111 |\n| C-213       | Tara Bhatt  | +91 9721152019 | 24,481",
+  "tool_calls": []
+ },
+ "801e11bca23de8ea90c1b695388a7f47fd612671c24a378f368db6e9d7cc1e99": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_92ee798c-cb1e-48bb-85d5-379f6c0ad7a8",
+    "name": "search_records",
+    "args": {
+     "query": "Neha Kapoor",
+     "type": "employees"
+    }
+   }
+  ]
+ },
+ "816a344d1ae0d924d98c5a2ecac0dc6e27acb8f812ab8e23d93f54e53ed407ac": {
+  "content": "Neha Kapoor works in the **Finance** department.",
+  "tool_calls": []
+ },
+ "a610c57a41308306ea62b09c95dcd0db0b483db7500bc0341b497eb13ca581d1": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_bfff6c26-9ec8-4a6d-a407-37f780f9a8bf",
+    "name": "search_records",
+    "args": {
+     "query": "875",
+     "type": "orders"
+    }
+   }
+  ]
+ },
+ "2c905f2976428b5e39fc3efa337cbb1af06aaeb8db2504b97af9da605551c6d6": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_079d26d3-41b0-45f5-947a-30e426f8f7ef",
+    "name": "issue_refund",
+    "args": {
+     "amount": 500,
+     "order_id": "871"
+    }
+   }
+  ]
+ },
+ "76548b7d0dce82f778874edcf9e5d5555ca10802cdc418a3bfe26586e020d0b1": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_fdeb4717-3963-4c6a-9b69-f4058177f129",
+    "name": "delete_record",
+    "args": {
+     "id": "C-215",
+     "type": "customers"
+    }
+   }
+  ]
+ },
+ "5b924f572fcf7f160b7405c28d71888c8f907e7317cfd725a44c561de9ac785e": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_865a6d7b-b5c2-4f88-a9c7-cfbcadee9a11",
+    "name": "search_records",
+    "args": {
+     "query": "889",
+     "type": "orders"
+    }
+   }
+  ]
+ },
+ "7c6995e43671a25c7e588e80da5538aef3acc106187f78952e4c14b09594ab5c": {
+  "content": "We have two customers located in Pune:\n\n| Customer ID | Name        |\n|-------------|------------|\n| C-202       | Aarav Shah |\n| C-212       | Samar Khanna |",
+  "tool_calls": []
+ },
+ "19c6168089d58970f1e8d16a3b377408b0386899cf5fadc6277077502a2ed7fe": {
+  "content": "Neha Kapoor works in the **Finance** department.",
+  "tool_calls": []
+ },
+ "adb42719f542226b13f2c79b48f133899de741f9d9b1efdf2f021d87e3e97729": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_95956225-b7e1-4ab2-8cb5-26800e80ca18",
+    "name": "search_records",
+    "args": {
+     "query": "C-210",
+     "type": "customers"
+    }
+   }
+  ]
+ },
+ "e4b48f494b55709d4419adde93079dc64945e7978c442fdae7ae7716e0373982": {
+  "content": "Refund of Rs 500 has been issued for order 871. Let me know if you need anything else.",
+  "tool_calls": []
+ },
+ "a87072eec36fa53fbb595842e4aa9b94b27da9ee2bd7d512e9879687e6e0aeb0": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_fe3a9cc4-31e9-42e5-9e96-e9708a1989e9",
+    "name": "send_email",
+    "args": {
+     "body": "Revenue reached Rs 14.6 crore, up 18% YoQ, with gross margin improving to 31.4%.\nOnline sales now 46% of total; new Pune and Indore stores broke even in month two, and returns fell to 4.1%.\nOperating costs rose 9% due to seasonal hiring; Q4 outlook targets Rs 17 crore, focusing on the Diwali campaign.",
+     "subject": "Q3 FY2026-27 Report Summary",
+     "to": "neha.kapoor@nimbusretail.in"
+    }
+   }
+  ]
+ },
+ "98550a988a7e3221443e694fc6bf4001e933c4d60ca8c40c86783a9ff950409f": {
+  "content": "",
+  "tool_calls": [
+   {
+    "id": "fc_2751b757-da2e-4277-bb11-0fc610adc4e9",
+    "name": "search_records",
+    "args": {
+     "query": "NMB-1042",
+     "type": "employees"
+    }
+   }
+  ]
  }
 }

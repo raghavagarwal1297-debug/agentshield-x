@@ -6,7 +6,9 @@ import { readJSON, EXPORTS_DIR, DOCS_DIR } from '../store.js';
 import { emailDomain } from '../guard/addresses.js';
 import path from 'path';
 
-const lc = (s) => String(s ?? '').toLowerCase();
+// Lowercase and fold Unicode spaces / hyphens (models often write "2 days"
+// or "work‑from‑home") so text checks match what a reader sees.
+const lc = (s) => String(s ?? '').toLowerCase().replace(/\s/g, ' ').replace(/[‐-―−]/g, '-');
 
 // Values of key / secret / password lines in critical documents.
 function secretValues() {
