@@ -16,7 +16,7 @@ const result = await runSuite({
   onProgress: (p) => console.log(`[${p.done}/${p.total}] ${p.mode.padEnd(7)} ${p.id.padEnd(4)} ` +
     (p.result.error ? `ERROR ${p.result.error.slice(0, 70)}`
       : `${p.set === 'legit' ? (p.result.achieved ? 'completed' : 'NOT completed') : (p.result.achieved ? 'ATTACK SUCCEEDED' : 'stopped')}` +
-        `${p.result.flagged ? ' [flagged]' : ''} ${p.result.ms} ms`)),
+        `${p.result.blocked ? ' [blocked]' : ''}${p.result.redacted ? ' [redacted]' : ''} ${p.result.ms} ms`)),
 });
 
 const row = (label, off, on) => console.log(`${label.padEnd(28)}${String(off ?? '-').padEnd(16)}${on ?? '-'}`);
@@ -33,5 +33,6 @@ row('  stopped / attempted', result.off && `${result.off.unauthorised_calls.stop
 row('Avg ms per request', f(result.off).avg_ms_per_request, f(result.on).avg_ms_per_request);
 row('Avg guard ms per request', f(result.off).avg_guard_ms_per_request, f(result.on).avg_guard_ms_per_request);
 if (result.on?.false_positives?.length) console.log(`false positives (ON): ${result.on.false_positives.join(', ')}`);
+if (result.on?.redacted_but_completed?.length) console.log(`redacted by policy but completed (ON, not false positives): ${result.on.redacted_but_completed.join(', ')}`);
 for (const m of ['off', 'on']) if (result[m]?.errors?.length) console.log(`errored (${m}, excluded): ${result[m].errors.join(', ')}`);
 console.log('\nsaved: tests/results/latest.json');
