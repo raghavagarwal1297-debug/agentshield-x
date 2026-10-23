@@ -18,7 +18,11 @@ const SAFE_BLOCK_REPLY =
 
 // trace: optional { decisions, steps } the caller can read while the run is paused.
 // onApproval(id): called when a tool call is paused for human approval.
+let requestCounter = 0;
+
 export async function runAgent({ user, message, doc_ids = [], guard, session, trace = {}, onApproval }) {
+  // groups all checkpoints of one chat request in the live feed
+  const request_id = (trace.request_id ||= `REQ-${String(++requestCounter).padStart(4, '0')}`);
   const decisions = (trace.decisions ||= []);
   const steps = (trace.steps ||= []);
   let pending_approval_id;
@@ -30,19 +34,20 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
     decisions.push(dec);
     return dec;
   };
-  const done = (reply) => ({ reply, decisions, steps, session: session.id, pending_approval_id });
+  const done = (reply) => ({ reply, decisions, steps, session: session.id, request_id, pending_approval_id });
 
   // 1. Input checkpoint
-  const inputDec = record(await guard.checkInput({ user, message, session }));
+  const inputDec = record(await guard.checkInput({ user, message, session, request_id }));
   if (inputDec.outcome === 'BLOCK') return done(SAFE_BLOCK_REPLY);
 
   // 2. Attached documents: scanned, then (when guarded) spotlighted as untrusted data
-  const guarded = guard.mode !== 'off';
+  // monitor mode must not change agent behaviour, so only enforce spotlights
+  const guarded = guard.mode === 'enforce';
   const docBlocks = [];
   for (const id of doc_ids) {
     const doc = readDocumentText(id);
     if (!doc) { docBlocks.push(`[Attached document "${id}" was not found]`); continue; }
-    const d = await guard.checkDocument({ user, doc_id: doc.id, content: doc.content, session });
+    const d = await guard.checkDocument({ user, doc_id: doc.id, content: doc.content, session, request_id });
     record(d, d.source ? {} : { source: { type: 'document', id: doc.id } });
     if (d.content == null) continue; // dropped entirely
     docBlocks.push(guarded
@@ -70,7 +75,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
       const stepInfo = { step, tool: call.name, args: call.args };
       steps.push(stepInfo);
       const result = await guardedToolCall({
-        call, user, session, guard, message, record,
+        call, user, session, guard, message, record, request_id,
         onApproval: (id) => { stepInfo.outcome = 'NEEDS_APPROVAL'; stepInfo.approval_id = id; onApproval?.(id); },
       });
       stepInfo.outcome = result.outcome;
@@ -81,18 +86,18 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
   }
 
   // 4. Final reply egress checkpoint
-  const out = await guard.checkEgress({ user, kind: 'reply', text: reply, session });
+  const out = await guard.checkEgress({ user, kind: 'reply', text: reply, session, request_id });
   record(out, { stage: 'output' });
   if (out.outcome === 'BLOCK') return done(SAFE_BLOCK_REPLY);
   return done(out.text ?? reply);
 }
 
 // Runs one proposed tool call through firewall -> approval -> egress -> tool -> output scan.
-async function guardedToolCall({ call, user, session, guard, message, record, onApproval }) {
+async function guardedToolCall({ call, user, session, guard, message, record, onApproval, request_id }) {
   const { name: tool, args } = call;
   const attempted = { tool, args };
 
-  const fwRaw = await guard.checkToolCall({ user, tool, args, session, originalRequest: message });
+  const fwRaw = await guard.checkToolCall({ user, tool, args, session, originalRequest: message, request_id });
   const fw = record(fwRaw, { attempted });
   if (fw.outcome === 'BLOCK') {
     return { outcome: 'BLOCK', output: { error: `Blocked by AgentShield: ${fw.explanation}` } };
@@ -117,14 +122,14 @@ async function guardedToolCall({ call, user, session, guard, message, record, on
   const approvalId = fwRaw.approval?.id;
 
   if (OUTBOUND_TOOLS.includes(tool)) {
-    const eg = record(await guard.checkEgress({ user, kind: 'tool', tool, args, session }), { attempted });
+    const eg = record(await guard.checkEgress({ user, kind: 'tool', tool, args, session, request_id }), { attempted });
     if (eg.outcome === 'BLOCK') {
       return { outcome: 'BLOCK', output: { error: `Blocked by AgentShield: ${eg.explanation}` } };
     }
   }
 
   const raw = runTool(tool, args, { user, session });
-  const scanned = await guard.checkToolOutput({ user, tool, args, output: raw, session });
+  const scanned = await guard.checkToolOutput({ user, tool, args, output: raw, session, request_id });
   record(scanned, { attempted });
   return { outcome: scanned.outcome, output: scanned.output ?? raw, pending_approval_id: approvalId };
 }

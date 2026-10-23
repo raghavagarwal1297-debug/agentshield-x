@@ -1,13 +1,19 @@
-// AgentShield X - Express server: routes, (later) SSE and guard pipeline.
+// AgentShield X - Express server: routes, SSE feed and guard pipeline.
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { resetData, readJSON } from './store.js';
+import { resetData, readJSON, writeJSON } from './store.js';
 import { getSession, resetSessions } from './sessions.js';
 import { runAgent } from './agent/agent.js';
-import { guard, getGuardState, setGuardMode } from './guard/index.js';
+import { listDocuments, readDocumentText } from './agent/tools.js';
+import { guard, getGuardState, setGuardState } from './guard/index.js';
 import { loadRules } from './guard/rules.js';
+import { loadDetectors } from './guard/detectors.js';
 import { listApprovals, decide, attachResult, waitForResult, resetApprovals } from './guard/approvals.js';
+import { listIncidents, getIncident, writeReport } from './guard/incidents.js';
+import { findHiddenSpans } from './guard/normalize.js';
+import { validatePolicy } from './guard/policy.js';
+import { bus } from './guard/events.js';
 import { LLMError, llmInfo } from './llm.js';
 
 const app = express();
@@ -19,18 +25,83 @@ app.get('/api/health', (req, res) => {
   res.json({
     ok: true, service: 'agentshield-x', agent: 'NimbusAssist', llm: llmInfo(), guard: getGuardState(),
     scanner_rules: { loaded: rules.rules.length, problems: rules.problems },
+    dlp_detectors: (({ detectors, problems }) => ({ loaded: detectors.length, problems }))(loadDetectors()),
     time: new Date().toISOString(),
   });
 });
 
-// Guard switch. Prompt 6 extends this with monitor mode and per-layer toggles.
+// GET/POST /api/guard { mode: off|monitor|enforce, layers: { scanner, firewall, approval, egress } }
+// POST accepts a partial update, e.g. { "layers": { "scanner": false } }.
 app.get('/api/guard', (req, res) => res.json(getGuardState()));
 app.post('/api/guard', (req, res) => {
   try {
-    res.json(setGuardMode(req.body?.mode));
+    res.json(setGuardState(req.body || {}));
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
+});
+
+// Live feed (Server-Sent Events): decision, incident, approval_created,
+// approval_resolved, guard_changed. Sends the guard state on connect.
+const STREAM_EVENTS = ['decision', 'incident', 'approval_created', 'approval_resolved', 'guard_changed'];
+app.get('/api/stream', (req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  send('hello', getGuardState());
+  const handlers = STREAM_EVENTS.map((name) => [name, (data) => send(name, data)]);
+  handlers.forEach(([name, fn]) => bus.on(name, fn));
+  const ping = setInterval(() => res.write(': ping\n\n'), 20000);
+  req.on('close', () => {
+    clearInterval(ping);
+    handlers.forEach(([name, fn]) => bus.off(name, fn));
+  });
+});
+
+// Incidents (newest first)
+app.get('/api/incidents', (req, res) => {
+  res.json(listIncidents({ limit: Math.min(Number(req.query.limit) || 100, 1000) }));
+});
+app.get('/api/incidents/:id', (req, res) => {
+  const inc = getIncident(req.params.id);
+  return inc ? res.json(inc) : res.status(404).json({ error: `Incident ${req.params.id} not found` });
+});
+// Manager-friendly report written by the judge model (template fallback).
+app.post('/api/incidents/:id/report', async (req, res) => {
+  const report = await writeReport(req.params.id);
+  return report ? res.json({ report: report.text, generated_by: report.generated_by }) : res.status(404).json({ error: `Incident ${req.params.id} not found` });
+});
+
+// Policy. Editing is a demo feature: only an admin session (X-User-Id header)
+// may change it, and it can be disabled with ALLOW_POLICY_EDIT=false (v2 fix #15).
+app.get('/api/policy', (req, res) => res.json(readJSON('policy.json')));
+app.put('/api/policy', (req, res) => {
+  if (process.env.ALLOW_POLICY_EDIT === 'false') return res.status(403).json({ error: 'Policy editing is disabled (ALLOW_POLICY_EDIT=false)' });
+  const editor = readJSON('users.json').find((u) => u.id === req.get('x-user-id'));
+  if (editor?.role !== 'admin') return res.status(403).json({ error: 'Only an admin user may change the policy (send header X-User-Id: admin_riya)' });
+  const errors = validatePolicy(req.body);
+  if (errors.length) return res.status(400).json({ error: 'Invalid policy', problems: errors });
+  writeJSON('policy.json', req.body);
+  res.json(req.body);
+});
+
+// Documents the user can attach. hidden_spans lets the UI highlight hidden text.
+app.get('/api/documents', (req, res) => {
+  const classes = readJSON('policy.json').document_classification || {};
+  res.json(listDocuments().map((id) => {
+    const { content } = readDocumentText(id);
+    return {
+      id,
+      title: content.split('\n').find((l) => l.trim())?.trim().slice(0, 80) || id,
+      classification: classes[id] || 'unclassified',
+      hidden_spans: findHiddenSpans(content),
+    };
+  }));
+});
+app.get('/api/documents/:id', (req, res) => {
+  const doc = readDocumentText(req.params.id);
+  if (!doc) return res.status(404).json({ error: `Document ${req.params.id} not found` });
+  const classification = readJSON('policy.json').document_classification?.[doc.id] || 'unclassified';
+  res.json({ id: doc.id, classification, content: doc.content, hidden_spans: findHiddenSpans(doc.content) });
 });
 
 // Restores all sandbox data files to their original state and clears sessions.

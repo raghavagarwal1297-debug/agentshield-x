@@ -82,12 +82,45 @@ function evalCondition(when, args) {
 
 // ---------- the check ----------
 
-export function checkToolCall({ user, tool, args = {}, session, originalRequest = '' }) {
-  const cfg = roleConfig(user.role);
-  const esc = claimsEscalation(originalRequest);
+// opts.firewall / opts.approval: run that layer (per-layer toggles).
+// opts.dryRun: report NEEDS_APPROVAL without queueing a real approval (monitor mode).
+export function checkToolCall({ user, tool, args = {}, session, originalRequest = '' }, opts = {}) {
+  const { firewall = true, approval = true, dryRun = false } = opts;
+  const esc = firewall && claimsEscalation(originalRequest);
   const escNote = esc ? ` The message claimed a different role; roles come only from the server (${user.role}), so the claim was ignored.` : '';
   const withEsc = (d) => (esc ? { ...d, rule_ids: [...d.rule_ids, 'FW-ESC'], escalation_attempt: true } : d);
   const block = (rule, risk, why) => withEsc(decision('BLOCK', { rule_ids: [rule], risk, explanation: why + escNote }));
+
+  if (firewall) {
+    const blocked = firewallChecks({ user, tool, args, session, originalRequest, block });
+    if (blocked) return blocked;
+  }
+
+  // 6. approval rules
+  const rule = approval && (policy().approval_required || []).find((r) => r.tool === tool && evalCondition(r.when, args));
+  if (rule) {
+    const risk = tool === 'issue_refund' ? 60 : 75;
+    const rule_ids = ['APR-' + tool.toUpperCase()];
+    const reason = rule.when
+      ? `${tool} with ${rule.when.replace(/\s+/g, ' ')} needs human approval (requested: ${JSON.stringify(args)}).`
+      : `${tool} always needs human approval (requested: ${JSON.stringify(args)}).`;
+    const queued = dryRun ? null : createApproval({ tool, args, user, session, risk, reason, rule_ids });
+    return withEsc(decision('NEEDS_APPROVAL', {
+      stage: 'tool', layer: 'approval', rule_ids, risk,
+      explanation: reason + ' Paused until a human approves or rejects.' + escNote,
+      ...(queued && { pending_approval_id: queued.id, approval: queued }),
+    }));
+  }
+
+  return withEsc(decision('ALLOW', {
+    risk: esc ? 40 : 0,
+    explanation: (esc ? 'Allowed under the real role.' : `${tool} is allowed for the ${user.role} role.`) + escNote,
+  }));
+}
+
+// Steps 1-5. Returns a BLOCK decision, or null when the call may proceed.
+function firewallChecks({ user, tool, args, session, originalRequest, block }) {
+  const cfg = roleConfig(user.role);
 
   // 1. role permission
   const tools = cfg.tools || [];
@@ -151,25 +184,7 @@ export function checkToolCall({ user, tool, args = {}, session, originalRequest 
 
   // count the email now that it is allowed to proceed
   if (tool === 'send_email') session.counters.emails = (session.counters.emails || 0) + 1;
-
-  // 6. approval rules
-  const rule = (policy().approval_required || []).find((r) => r.tool === tool && evalCondition(r.when, args));
-  if (rule) {
-    const risk = tool === 'issue_refund' ? 60 : 75;
-    const reason = rule.when
-      ? `${tool} with ${rule.when.replace(/\s+/g, ' ')} needs human approval (requested: ${JSON.stringify(args)}).`
-      : `${tool} always needs human approval (requested: ${JSON.stringify(args)}).`;
-    const approval = createApproval({ tool, args, user, session, risk, reason, rule_ids: ['APR-' + tool.toUpperCase()] });
-    return withEsc(decision('NEEDS_APPROVAL', {
-      rule_ids: ['APR-' + tool.toUpperCase()], risk, explanation: reason + ' Paused until a human approves or rejects.' + escNote,
-      pending_approval_id: approval.id, approval,
-    }));
-  }
-
-  return withEsc(decision('ALLOW', {
-    risk: esc ? 40 : 0,
-    explanation: (esc ? 'Allowed under the real role.' : `${tool} is allowed for the ${user.role} role.`) + escNote,
-  }));
+  return null;
 }
 
 // Data scope on tool OUTPUT: interns never even receive salary fields.
@@ -177,7 +192,8 @@ export function checkToolCall({ user, tool, args = {}, session, originalRequest 
 export function filterToolOutput({ user, tool, args = {}, output, session }) {
   if (tool !== 'search_records' || !Array.isArray(output?.records)) return null;
   const fields = allowedFields(user.role, args.type);
-  let records = output.records;
+  // Honeytokens and internal flags are never shown to anyone (not counted as a redaction).
+  let records = output.records.map(({ canary, deleted, ...r }) => r);
   let removedFields = [];
   if (!fields.includes('*')) {
     const keep = new Set(fields);

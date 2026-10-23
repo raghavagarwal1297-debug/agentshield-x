@@ -1,16 +1,39 @@
 // Guard pipeline. The agent calls these hooks; each returns a decision
-// { stage, outcome, rule_ids, risk, explanation, layer, would_block, ... }.
-// Prompt 3: scanner hooks. Prompt 4: tool firewall + approvals.
-// Egress, monitor mode and per-layer toggles arrive in Prompts 5-6.
+// { stage, outcome, rule_ids, risk, explanation, layer, would_block, ... }
+// plus, for some hooks, the (possibly sanitised) payload: content / output / text.
+//
+// Modes (v2 4.4):
+//   off      - no checks; a grey "unguarded" decision event is still emitted
+//   monitor  - all checks run and are logged with would_block, nothing is stopped
+//   enforce  - full guard
+// Layers scanner | firewall | approval | egress can each be switched off.
+// Every decision is published on the event bus; every non-ALLOW (or
+// would-block) decision becomes an incident.
 import { noopGuard } from './noopGuard.js';
 import { scan, level, lineHits, sanitize } from './inputScanner.js';
 import * as firewall from './toolFirewall.js';
+import { createIncident } from './incidents.js';
+import { bus } from './events.js';
+
+const MODES = ['off', 'monitor', 'enforce'];
+const LAYERS = ['scanner', 'firewall', 'approval', 'egress'];
+const STOPPING = ['BLOCK', 'REDACT', 'NEEDS_APPROVAL'];
+
+const state = {
+  mode: MODES.includes(process.env.GUARD_MODE) ? process.env.GUARD_MODE : 'enforce',
+  layers: { scanner: true, firewall: true, approval: true, egress: true },
+};
+const on = (layer) => state.layers[layer] !== false;
 
 const decision = (stage, layer, outcome, extra = {}) => ({
   stage, layer, outcome, rule_ids: [], risk: 0, explanation: '', would_block: false, ...extra,
 });
+const layerOff = (stage, layer, extra = {}) =>
+  decision(stage, layer, 'ALLOW', { layer_off: true, explanation: `The ${layer} layer is switched off.`, ...extra });
 
-// Scans a document-like text and removes only the injected lines.
+// ---------- scanner helpers ----------
+
+// Scans a document-like text and removes only the injected lines (v2 fix #11).
 // Returns { decision, content } where content is null if the whole text must be dropped.
 async function scanDocument({ text, stage, source, session }) {
   const s = await scan(text, { source: source.type });
@@ -28,8 +51,6 @@ async function scanDocument({ text, stage, source, session }) {
       content: text,
     };
   }
-
-  // BLOCK level
   if (s.failed_closed) {
     return {
       decision: decision(stage, 'scanner', 'BLOCK', { ...base, rule_ids: ['SCN-FAILCLOSED'], source,
@@ -39,7 +60,6 @@ async function scanDocument({ text, stage, source, session }) {
   }
   const hits = lineHits(text, s.matches);
   if (!hits.length) {
-    // could not localise the injection to specific lines -> drop the whole text
     return {
       decision: decision(stage, 'scanner', 'BLOCK', { ...base, source,
         explanation: `Prompt injection detected in ${source.id} (risk ${s.risk}/100); the content was withheld from the assistant. ${s.reason}` }),
@@ -59,13 +79,14 @@ async function scanDocument({ text, stage, source, session }) {
   };
 }
 
-const enforceGuard = {
-  mode: 'enforce',
+// ---------- the checks (enforce semantics; monitor is applied on top) ----------
 
+const checks = {
   async checkInput({ message, session }) {
+    if (!on('scanner')) return layerOff('input', 'scanner');
     const s = await scan(message, { source: 'user message' });
     const lvl = level(s.risk);
-    const base = { risk: s.risk, rule_ids: s.matches, source: { type: 'user_message' }, scan: s.reason };
+    const base = { risk: s.risk, rule_ids: s.matches, source: { type: 'user_message', excerpt: message.slice(0, 300) }, scan: s.reason };
     if (lvl === 'block') {
       return decision('input', 'scanner', 'BLOCK', { ...base,
         rule_ids: s.failed_closed ? ['SCN-FAILCLOSED'] : s.matches,
@@ -81,29 +102,36 @@ const enforceGuard = {
   },
 
   async checkDocument({ user, doc_id, content, session }) {
+    const source = { type: 'document', id: doc_id };
     // Attached documents obey the same classification limits as read_document.
-    const denied = firewall.documentDenied(user.role, doc_id);
-    if (denied) {
-      return decision('document', 'firewall', 'BLOCK', { rule_ids: ['FW-DOC'], risk: 85,
-        source: { type: 'document', id: doc_id },
-        explanation: `Document access denied: ${denied}. It was not given to the assistant.`, content: null });
+    if (on('firewall')) {
+      const denied = firewall.documentDenied(user.role, doc_id);
+      if (denied) {
+        return decision('document', 'firewall', 'BLOCK', { rule_ids: ['FW-DOC'], risk: 85, source,
+          explanation: `Document access denied: ${denied}. It was not given to the assistant.`, content: null });
+      }
     }
-    const r = await scanDocument({ text: content, stage: 'document', source: { type: 'document', id: doc_id }, session });
+    if (!on('scanner')) return layerOff('document', 'scanner', { source, content });
+    const r = await scanDocument({ text: content, stage: 'document', source, session });
     return { ...r.decision, content: r.content };
   },
 
   async checkToolCall(ctx) {
-    return firewall.checkToolCall(ctx);
+    if (!on('firewall') && !on('approval')) return layerOff('tool', 'firewall');
+    return firewall.checkToolCall(ctx, { firewall: on('firewall'), approval: on('approval'), dryRun: state.mode === 'monitor' });
   },
 
   // search_records output is filtered to the role's field scope (firewall);
   // fetched pages and read documents can carry injections, so they are scanned.
   async checkToolOutput({ user, tool, args, output, session }) {
-    const scoped = firewall.filterToolOutput({ user, tool, args, output, session });
-    if (scoped) return scoped;
+    if (on('firewall')) {
+      const scoped = firewall.filterToolOutput({ user, tool, args, output, session });
+      if (scoped) return scoped;
+    }
     if (!output || typeof output.content !== 'string') {
       return decision('tool', 'scanner', 'ALLOW', { explanation: 'Tool output has no free text to scan.', output });
     }
+    if (!on('scanner')) return layerOff('tool', 'scanner', { output });
     const source = tool === 'fetch_url'
       ? { type: 'web', id: output.url }
       : { type: 'document', id: output.doc_id || tool };
@@ -114,23 +142,80 @@ const enforceGuard = {
     return { ...r.decision, output: safe };
   },
 
-  // Not implemented yet (Prompt 5): allow.
-  checkEgress: noopGuard.checkEgress,
+  // Egress / DLP (Prompt 5) is not implemented yet: allow, and say so.
+  async checkEgress({ kind, text }) {
+    if (!on('egress')) return layerOff(kind === 'reply' ? 'output' : 'egress', 'egress', { text });
+    return decision(kind === 'reply' ? 'output' : 'egress', 'egress', 'ALLOW', {
+      explanation: 'Egress/DLP checks are not implemented yet.', not_implemented: true, text,
+    });
+  },
 };
 
-// Global guard switch. Prompt 6 adds monitor mode and per-layer toggles.
-let mode = process.env.GUARD_MODE === 'off' ? 'off' : 'enforce';
+// ---------- mode handling + publishing ----------
 
-export const guard = new Proxy({}, {
-  get: (_, prop) => (mode === 'off' ? noopGuard : enforceGuard)[prop],
-});
+// Payload fields never go on the event bus.
+const publicView = ({ content, output, text, approval, ...d }) => d;
 
-export function getGuardState() {
-  return { mode, layers: { scanner: true, firewall: true, approval: true, egress: true } };
+function publish(d, args) {
+  const ctx = { user: args.user, session: args.session, request_id: args.request_id, mode: state.mode };
+  if (STOPPING.includes(d.outcome) || d.would_block) {
+    const incident = createIncident(d, ctx);
+    d.incident_id = incident.id;
+    bus.emit('incident', incident);
+  }
+  bus.emit('decision', {
+    ...publicView(d), request_id: args.request_id || null, user: args.user?.id, role: args.user?.role,
+    mode: state.mode, ts: new Date().toISOString(),
+  });
 }
 
-export function setGuardMode(next) {
-  if (!['off', 'enforce'].includes(next)) throw new Error('mode must be "off" or "enforce" (monitor arrives in Prompt 6)');
-  mode = next;
-  return getGuardState();
+async function runHook(name, args) {
+  let d;
+  if (state.mode === 'off') {
+    d = { ...(await noopGuard[name](args)), unguarded: true };
+  } else {
+    d = await checks[name](args);
+    if (state.mode === 'monitor' && STOPPING.includes(d.outcome)) {
+      // record what enforce mode would do, but let everything through unchanged
+      d = {
+        ...d, original_outcome: d.outcome, outcome: 'ALLOW', would_block: true,
+        explanation: `Monitor mode - enforce would have returned ${d.outcome}: ${d.explanation}`,
+        content: args.content, output: args.output, text: args.text,
+        approval: undefined, pending_approval_id: undefined,
+      };
+    }
+  }
+  if (args.tool && !d.attempted) d.attempted = { tool: args.tool, args: args.args };
+  publish(d, args);
+  return d;
+}
+
+export const guard = {
+  get mode() { return state.mode; },
+  checkInput: (a) => runHook('checkInput', a),
+  checkDocument: (a) => runHook('checkDocument', a),
+  checkToolCall: (a) => runHook('checkToolCall', a),
+  checkToolOutput: (a) => runHook('checkToolOutput', a),
+  checkEgress: (a) => runHook('checkEgress', a),
+};
+
+export function getGuardState() {
+  return { mode: state.mode, layers: { ...state.layers } };
+}
+
+// Accepts a partial update: { mode?, layers?: { scanner?, firewall?, approval?, egress? } }
+export function setGuardState({ mode, layers } = {}) {
+  if (mode !== undefined && !MODES.includes(mode)) throw new Error(`mode must be one of ${MODES.join(', ')}`);
+  if (layers !== undefined) {
+    if (typeof layers !== 'object' || layers === null) throw new Error('layers must be an object');
+    for (const [k, v] of Object.entries(layers)) {
+      if (!LAYERS.includes(k)) throw new Error(`unknown layer "${k}" (layers: ${LAYERS.join(', ')})`);
+      if (typeof v !== 'boolean') throw new Error(`layer "${k}" must be true or false`);
+    }
+  }
+  if (mode !== undefined) state.mode = mode;
+  if (layers) Object.assign(state.layers, layers);
+  const s = getGuardState();
+  bus.emit('guard_changed', s);
+  return s;
 }
