@@ -94,6 +94,21 @@ node server/tests/demoScenarios.js monitor --only=3,5
 
 Say on the slide that cached mode is a replay.
 
+## Dashboard (client/)
+
+`client/src/api.js` has `USE_MOCK = false`, so the dashboard talks to the real API
+through the Vite proxy (`/api` -> :4000). In live mode it never falls back to
+mock data: failed reads keep the current screen, failed writes show the error.
+The scenario buttons come from `client/mock/chat.json` and send their own
+`user_id`. Their messages differ slightly from `server/tests/scenarios.js`.
+
+Presenter notes:
+- Scenario 7 switches the scanner layer off and leaves it off. Turn it back on
+  in the top bar before running scenario 2 again.
+- The Metrics tab shows the last saved test run (`/api/metrics`). Held-out
+  numbers stay empty until `tests/heldout.json` exists.
+- "Run test suite" runs 26 cases live with an 8 s pause and takes several minutes.
+
 ## Architecture
 
 ```
