@@ -1,9 +1,10 @@
 // Guard pipeline. The agent calls these hooks; each returns a decision
 // { stage, outcome, rule_ids, risk, explanation, layer, would_block, ... }.
-// Prompt 3: scanner hooks (input, document, tool output). Firewall, approvals,
-// egress, monitor mode and per-layer toggles arrive in Prompts 4-6.
+// Prompt 3: scanner hooks. Prompt 4: tool firewall + approvals.
+// Egress, monitor mode and per-layer toggles arrive in Prompts 5-6.
 import { noopGuard } from './noopGuard.js';
 import { scan, level, lineHits, sanitize } from './inputScanner.js';
+import * as firewall from './toolFirewall.js';
 
 const decision = (stage, layer, outcome, extra = {}) => ({
   stage, layer, outcome, rule_ids: [], risk: 0, explanation: '', would_block: false, ...extra,
@@ -79,13 +80,27 @@ const enforceGuard = {
     return decision('input', 'scanner', 'ALLOW', { ...base, explanation: 'No injection detected.' });
   },
 
-  async checkDocument({ doc_id, content, session }) {
+  async checkDocument({ user, doc_id, content, session }) {
+    // Attached documents obey the same classification limits as read_document.
+    const denied = firewall.documentDenied(user.role, doc_id);
+    if (denied) {
+      return decision('document', 'firewall', 'BLOCK', { rule_ids: ['FW-DOC'], risk: 85,
+        source: { type: 'document', id: doc_id },
+        explanation: `Document access denied: ${denied}. It was not given to the assistant.`, content: null });
+    }
     const r = await scanDocument({ text: content, stage: 'document', source: { type: 'document', id: doc_id }, session });
     return { ...r.decision, content: r.content };
   },
 
-  // Fetched pages and read documents can carry injections too.
-  async checkToolOutput({ tool, output, session }) {
+  async checkToolCall(ctx) {
+    return firewall.checkToolCall(ctx);
+  },
+
+  // search_records output is filtered to the role's field scope (firewall);
+  // fetched pages and read documents can carry injections, so they are scanned.
+  async checkToolOutput({ user, tool, args, output, session }) {
+    const scoped = firewall.filterToolOutput({ user, tool, args, output, session });
+    if (scoped) return scoped;
     if (!output || typeof output.content !== 'string') {
       return decision('tool', 'scanner', 'ALLOW', { explanation: 'Tool output has no free text to scan.', output });
     }
@@ -99,8 +114,7 @@ const enforceGuard = {
     return { ...r.decision, output: safe };
   },
 
-  // Not implemented yet (Prompts 4-5): allow.
-  checkToolCall: noopGuard.checkToolCall,
+  // Not implemented yet (Prompt 5): allow.
   checkEgress: noopGuard.checkEgress,
 };
 

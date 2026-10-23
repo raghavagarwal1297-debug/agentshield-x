@@ -16,9 +16,11 @@ const OUTBOUND_TOOLS = ['send_email', 'fetch_url'];
 const SAFE_BLOCK_REPLY =
   'AgentShield blocked this request because it looked unsafe. The details are in the incident log.';
 
-export async function runAgent({ user, message, doc_ids = [], guard, session }) {
-  const decisions = [];
-  const steps = [];
+// trace: optional { decisions, steps } the caller can read while the run is paused.
+// onApproval(id): called when a tool call is paused for human approval.
+export async function runAgent({ user, message, doc_ids = [], guard, session, trace = {}, onApproval }) {
+  const decisions = (trace.decisions ||= []);
+  const steps = (trace.steps ||= []);
   let pending_approval_id;
 
   // Log the decision without payload fields (content/output/text/approval).
@@ -67,7 +69,10 @@ export async function runAgent({ user, message, doc_ids = [], guard, session }) 
     for (const call of res.tool_calls) {
       const stepInfo = { step, tool: call.name, args: call.args };
       steps.push(stepInfo);
-      const result = await guardedToolCall({ call, user, session, guard, message, record });
+      const result = await guardedToolCall({
+        call, user, session, guard, message, record,
+        onApproval: (id) => { stepInfo.outcome = 'NEEDS_APPROVAL'; stepInfo.approval_id = id; onApproval?.(id); },
+      });
       stepInfo.outcome = result.outcome;
       if (result.pending_approval_id) pending_approval_id = result.pending_approval_id;
       stepInfo.result_preview = JSON.stringify(result.output).slice(0, 300);
@@ -83,7 +88,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session }) 
 }
 
 // Runs one proposed tool call through firewall -> approval -> egress -> tool -> output scan.
-async function guardedToolCall({ call, user, session, guard, message, record }) {
+async function guardedToolCall({ call, user, session, guard, message, record, onApproval }) {
   const { name: tool, args } = call;
   const attempted = { tool, args };
 
@@ -93,13 +98,23 @@ async function guardedToolCall({ call, user, session, guard, message, record }) 
     return { outcome: 'BLOCK', output: { error: `Blocked by AgentShield: ${fw.explanation}` } };
   }
   if (fw.outcome === 'NEEDS_APPROVAL' && fwRaw.approval) {
-    // The approval queue (Prompt 4) returns a promise that settles on a human decision.
+    // The loop pauses here until a human approves/rejects (or it times out).
+    onApproval?.(fwRaw.approval.id);
     const decision = await fwRaw.approval.promise;
-    if (decision.decision !== 'approve') {
+    const approved = decision.decision === 'approve';
+    record({
+      stage: 'tool', layer: 'approval', outcome: approved ? 'ALLOW' : 'BLOCK', rule_ids: fw.rule_ids, risk: fw.risk,
+      approval_id: fwRaw.approval.id, decided_by: decision.by,
+      explanation: approved
+        ? `${tool} approved by ${decision.by} (${fwRaw.approval.id}).`
+        : `${tool} rejected by ${decision.by} (${fwRaw.approval.id}): ${decision.reason || 'rejected'}.`,
+    }, { attempted });
+    if (!approved) {
       return { outcome: 'REJECTED', pending_approval_id: fwRaw.approval.id,
         output: { error: `A human reviewer declined this action (${decision.reason || 'rejected'}).` } };
     }
   }
+  const approvalId = fwRaw.approval?.id;
 
   if (OUTBOUND_TOOLS.includes(tool)) {
     const eg = record(await guard.checkEgress({ user, kind: 'tool', tool, args, session }), { attempted });
@@ -111,5 +126,5 @@ async function guardedToolCall({ call, user, session, guard, message, record }) 
   const raw = runTool(tool, args, { user, session });
   const scanned = await guard.checkToolOutput({ user, tool, args, output: raw, session });
   record(scanned, { attempted });
-  return { outcome: scanned.outcome, output: scanned.output ?? raw };
+  return { outcome: scanned.outcome, output: scanned.output ?? raw, pending_approval_id: approvalId };
 }
