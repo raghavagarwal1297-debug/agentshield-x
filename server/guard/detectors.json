@@ -1,34 +1,37 @@
-[
-  {
-    "id": "indian_mobile",
-    "kind": "phone",
-    "sensitivity": "high",
-    "label": "Indian mobile number",
-    "pattern": "(?<!\\d)(?:(?:\\+91|91)[\\s-]?)?[6-9]\\d{9}(?!\\d)",
-    "case_sensitive": false
-  },
-  {
-    "id": "pan_card",
-    "kind": "pan",
-    "sensitivity": "high",
-    "label": "Indian PAN card number",
-    "pattern": "(?<![A-Z0-9])[A-Z]{5}\\d{4}[A-Z](?![A-Z0-9])",
-    "case_sensitive": false
-  },
-  {
-    "id": "aadhaar_number",
-    "kind": "aadhaar",
-    "sensitivity": "high",
-    "label": "Aadhaar number",
-    "pattern": "(?<!\\d)[2-9]\\d{3}[\\s-]?\\d{4}[\\s-]?\\d{4}(?!\\d)",
-    "case_sensitive": false
-  },
-  {
-    "id": "email_address",
-    "kind": "email",
-    "sensitivity": "high",
-    "label": "Email address",
-    "pattern": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b",
-    "case_sensitive": false
-  }
-]
+{
+  "version": 1,
+  "detectors": [
+    {
+      "id": "DET-PHONE",
+      "kind": "phone",
+      "sensitivity": "high",
+      "label": "Indian mobile number",
+      "pattern": "(?<!\\d)(?:(?:\\+91|91)[\\s-]?)?[6-9]\\d{9}(?!\\d)",
+      "case_sensitive": false
+    },
+    {
+      "id": "DET-PAN",
+      "kind": "pan",
+      "sensitivity": "high",
+      "label": "Indian PAN card number",
+      "pattern": "(?<![A-Z0-9])[A-Z]{5}\\d{4}[A-Z](?![A-Z0-9])",
+      "case_sensitive": false
+    },
+    {
+      "id": "DET-AADHAAR",
+      "kind": "aadhaar",
+      "sensitivity": "high",
+      "label": "Aadhaar number",
+      "pattern": "(?<!\\d)[2-9]\\d{3}[\\s-]?\\d{4}[\\s-]?\\d{4}(?!\\d)",
+      "case_sensitive": false
+    },
+    {
+      "id": "DET-EMAIL",
+      "kind": "email",
+      "sensitivity": "high",
+      "label": "Email address",
+      "pattern": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\\b",
+      "case_sensitive": false
+    }
+  ]
+}
