@@ -25,6 +25,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
   const request_id = (trace.request_id ||= `REQ-${String(++requestCounter).padStart(4, '0')}`);
   const decisions = (trace.decisions ||= []);
   const steps = (trace.steps ||= []);
+  const rejected = new Set(); // tools a human rejected in this run
   let pending_approval_id;
 
   // Log the decision without payload fields (content/output/text/approval).
@@ -75,7 +76,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
       const stepInfo = { step, tool: call.name, args: call.args };
       steps.push(stepInfo);
       const result = await guardedToolCall({
-        call, user, session, guard, message, record, request_id,
+        call, user, session, guard, message, record, request_id, rejected,
         onApproval: (id) => { stepInfo.outcome = 'NEEDS_APPROVAL'; stepInfo.approval_id = id; onApproval?.(id); },
       });
       stepInfo.outcome = result.outcome;
@@ -93,9 +94,18 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
 }
 
 // Runs one proposed tool call through firewall -> approval -> egress -> tool -> output scan.
-async function guardedToolCall({ call, user, session, guard, message, record, onApproval, request_id }) {
+async function guardedToolCall({ call, user, session, guard, message, record, onApproval, request_id, rejected }) {
   const { name: tool, args } = call;
   const attempted = { tool, args };
+
+  // A human already said no to this tool in this run: do not ask again.
+  if (rejected?.has(tool)) {
+    const d = record({
+      stage: 'tool', layer: 'approval', outcome: 'BLOCK', rule_ids: ['APR-REJECTED'], risk: 50,
+      explanation: `${tool} was already rejected by a reviewer in this request, so it was not retried.`,
+    }, { attempted });
+    return { outcome: 'BLOCK', output: { error: `Blocked by AgentShield: ${d.explanation} Tell the user the action was declined.` } };
+  }
 
   const fwRaw = await guard.checkToolCall({ user, tool, args, session, originalRequest: message, request_id });
   const fw = record(fwRaw, { attempted });
@@ -115,8 +125,9 @@ async function guardedToolCall({ call, user, session, guard, message, record, on
         : `${tool} rejected by ${decision.by} (${fwRaw.approval.id}): ${decision.reason || 'rejected'}.`,
     }, { attempted });
     if (!approved) {
+      rejected?.add(tool);
       return { outcome: 'REJECTED', pending_approval_id: fwRaw.approval.id,
-        output: { error: `A human reviewer declined this action (${decision.reason || 'rejected'}).` } };
+        output: { error: `A human reviewer declined this action (${decision.reason || 'rejected'}). Do not retry it; tell the user it was declined.` } };
     }
   }
   const approvalId = fwRaw.approval?.id;
