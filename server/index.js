@@ -2,14 +2,15 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { resetData, readJSON, writeJSON } from './store.js';
-import { getSession, resetSessions } from './sessions.js';
+import { readJSON, writeJSON } from './store.js';
+import { resetAll } from './reset.js';
+import { getSession } from './sessions.js';
 import { runAgent } from './agent/agent.js';
 import { listDocuments, readDocumentText } from './agent/tools.js';
 import { guard, getGuardState, setGuardState } from './guard/index.js';
 import { loadRules } from './guard/rules.js';
 import { loadDetectors } from './guard/detectors.js';
-import { listApprovals, decide, attachResult, waitForResult, resetApprovals } from './guard/approvals.js';
+import { listApprovals, decide, attachResult, waitForResult } from './guard/approvals.js';
 import { listIncidents, getIncident, writeReport } from './guard/incidents.js';
 import { findHiddenSpans } from './guard/normalize.js';
 import { validatePolicy } from './guard/policy.js';
@@ -106,9 +107,7 @@ app.get('/api/documents/:id', (req, res) => {
 
 // Restores all sandbox data files to their original state and clears sessions.
 app.get('/api/reset', (req, res) => {
-  resetData();
-  resetSessions();
-  resetApprovals();
+  resetAll();
   res.json({ ok: true });
 });
 

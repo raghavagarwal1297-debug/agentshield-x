@@ -6,7 +6,9 @@
 // Messages use the OpenAI shape internally:
 //   { role: 'system'|'user'|'assistant'|'tool', content, tool_calls?, tool_call_id?, name? }
 // Two model slots: AGENT_MODEL runs the agent loop, JUDGE_MODEL does short
-// classifier/report calls. Temperature is always 0 for repeatable demos.
+// classifier/report calls. Temperature is always 0 for repeatable demos, and
+// DEMO_MODE=record|cached replays saved responses (see llmCache.js).
+import { withCache, cacheInfo } from './llmCache.js';
 
 export class LLMError extends Error {}
 
@@ -19,12 +21,17 @@ export const judgeModel = () =>
   process.env.JUDGE_MODEL || (provider() === 'gemini' ? 'gemini-2.5-flash-lite' : 'openai/gpt-oss-20b');
 
 export function llmInfo() {
-  return { provider: provider(), agent_model: agentModel(), judge_model: judgeModel() };
+  return { provider: provider(), agent_model: agentModel(), judge_model: judgeModel(), ...cacheInfo() };
+}
+
+function callProvider({ messages, tools, model, json = false }) {
+  return withCache({ model, messages, tools, json }, () => (provider() === 'gemini'
+    ? geminiChat({ messages, tools, model, json })
+    : groqChat({ messages, tools, model, json })));
 }
 
 export async function chat({ messages, tools = [], model = agentModel() }) {
-  if (provider() === 'gemini') return geminiChat({ messages, tools, model });
-  return groqChat({ messages, tools, model });
+  return callProvider({ messages, tools, model });
 }
 
 // Short JSON-only call on the judge model. Returns a parsed object.
@@ -33,9 +40,7 @@ export async function classify(prompt, { model = judgeModel() } = {}) {
     { role: 'system', content: 'You are a security classifier. Reply with a single JSON object only.' },
     { role: 'user', content: prompt },
   ];
-  const res = provider() === 'gemini'
-    ? await geminiChat({ messages, tools: [], model, json: true })
-    : await groqChat({ messages, tools: [], model, json: true });
+  const res = await callProvider({ messages, tools: [], model, json: true });
   return parseJSON(res.content);
 }
 

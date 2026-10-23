@@ -4,7 +4,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon --watch . --ignore data/ --ignore tests/results/ index.js",
+    "dev": "nodemon --watch . --ignore data/ --ignore cache/ --ignore tests/results/ index.js",
     "start": "node index.js"
   },
   "dependencies": {
