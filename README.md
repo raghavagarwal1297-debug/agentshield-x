@@ -107,7 +107,7 @@ Presenter notes:
   in the top bar before running scenario 2 again.
 - The Metrics tab shows the last saved test run (`/api/metrics`). Held-out
   numbers stay empty until `tests/heldout.json` exists.
-- "Run test suite" runs 26 cases live with an 8 s pause and takes several minutes.
+- "Run test suite" runs 26 cases in both modes (52 runs) live with an 8 s pause; it takes about 15-20 minutes and uses a lot of Groq quota.
 
 ## Architecture
 
