@@ -21,10 +21,10 @@ export async function runAgent({ user, message, doc_ids = [], guard, session }) 
   const steps = [];
   let pending_approval_id;
 
-  // Keep only the decision fields (hooks may also return content/output/etc).
+  // Log the decision without payload fields (content/output/text/approval).
   const record = (d, extra = {}) => {
-    const { stage, outcome, rule_ids = [], risk = 0, explanation = '', layer, would_block = false } = d;
-    const dec = { stage, outcome, rule_ids, risk, explanation, layer, would_block, ...extra };
+    const { content, output, text, approval, ...fields } = d;
+    const dec = { rule_ids: [], risk: 0, explanation: '', would_block: false, ...fields, ...extra };
     decisions.push(dec);
     return dec;
   };
@@ -41,7 +41,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session }) 
     const doc = readDocumentText(id);
     if (!doc) { docBlocks.push(`[Attached document "${id}" was not found]`); continue; }
     const d = await guard.checkDocument({ user, doc_id: doc.id, content: doc.content, session });
-    record(d, { source: { type: 'document', id: doc.id } });
+    record(d, d.source ? {} : { source: { type: 'document', id: doc.id } });
     if (d.content == null) continue; // dropped entirely
     docBlocks.push(guarded
       ? `<untrusted_document id="${doc.id}">\n${d.content}\n</untrusted_document>\n` +
@@ -87,15 +87,16 @@ async function guardedToolCall({ call, user, session, guard, message, record }) 
   const { name: tool, args } = call;
   const attempted = { tool, args };
 
-  const fw = record(await guard.checkToolCall({ user, tool, args, session, originalRequest: message }), { attempted });
+  const fwRaw = await guard.checkToolCall({ user, tool, args, session, originalRequest: message });
+  const fw = record(fwRaw, { attempted });
   if (fw.outcome === 'BLOCK') {
     return { outcome: 'BLOCK', output: { error: `Blocked by AgentShield: ${fw.explanation}` } };
   }
-  if (fw.outcome === 'NEEDS_APPROVAL' && fw.approval) {
+  if (fw.outcome === 'NEEDS_APPROVAL' && fwRaw.approval) {
     // The approval queue (Prompt 4) returns a promise that settles on a human decision.
-    const decision = await fw.approval.promise;
+    const decision = await fwRaw.approval.promise;
     if (decision.decision !== 'approve') {
-      return { outcome: 'REJECTED', pending_approval_id: fw.approval.id,
+      return { outcome: 'REJECTED', pending_approval_id: fwRaw.approval.id,
         output: { error: `A human reviewer declined this action (${decision.reason || 'rejected'}).` } };
     }
   }

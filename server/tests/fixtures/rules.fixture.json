@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "bonuses": { "hidden_text": 25, "obfuscation": 15 },
+  "rules": [
+    { "id": "FIX-01", "category": "other", "pattern": "\\bpineapple\\b", "weight": 50, "desc": "fixture: fruit word" },
+    { "id": "FIX-02", "category": "other", "pattern": "\\bmango\\b", "weight": 30, "desc": "fixture: fruit word" },
+    { "id": "FIX-03", "category": "other", "pattern": "(", "weight": 10, "desc": "fixture: deliberately broken regex" },
+    { "id": "fix-04", "category": "nope", "pattern": "x", "weight": 10 },
+    { "id": "FIX-05", "category": "other", "pattern": "\bkiwi\b", "weight": 10, "desc": "fixture: single-backslash mistake" }
+  ]
+}

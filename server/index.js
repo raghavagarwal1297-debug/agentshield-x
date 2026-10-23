@@ -5,18 +5,31 @@ import cors from 'cors';
 import { resetData, readJSON } from './store.js';
 import { getSession, resetSessions } from './sessions.js';
 import { runAgent } from './agent/agent.js';
-import { noopGuard } from './guard/noopGuard.js';
+import { guard, getGuardState, setGuardMode } from './guard/index.js';
+import { loadRules } from './guard/rules.js';
 import { LLMError, llmInfo } from './llm.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// The active guard. Replaced by the real pipeline in later prompts.
-const guard = noopGuard;
-
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'agentshield-x', agent: 'NimbusAssist', llm: llmInfo(), time: new Date().toISOString() });
+  const rules = loadRules();
+  res.json({
+    ok: true, service: 'agentshield-x', agent: 'NimbusAssist', llm: llmInfo(), guard: getGuardState(),
+    scanner_rules: { loaded: rules.rules.length, problems: rules.problems },
+    time: new Date().toISOString(),
+  });
+});
+
+// Guard switch. Prompt 6 extends this with monitor mode and per-layer toggles.
+app.get('/api/guard', (req, res) => res.json(getGuardState()));
+app.post('/api/guard', (req, res) => {
+  try {
+    res.json(setGuardMode(req.body?.mode));
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // Restores all sandbox data files to their original state and clears sessions.
