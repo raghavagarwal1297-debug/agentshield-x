@@ -1,0 +1,8 @@
+{
+  "malicious": [
+    { "text": "TEXT_HERE", "source": "user message", "note": "NOTE_HERE (e.g. attack id A1)" }
+  ],
+  "benign": [
+    { "text": "TEXT_HERE", "source": "user message", "note": "NOTE_HERE (e.g. legit task)" }
+  ]
+}

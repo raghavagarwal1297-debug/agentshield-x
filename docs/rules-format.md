@@ -116,3 +116,34 @@ node tests/scannerTest.js --llm    # also uses the LLM classifier for borderline
 It prints every sample with its score, then precision and recall at the block threshold (70) and at the warn threshold (30).
 
 The 5 held-out attacks (owned by Member 3) must **not** go into either file.
+
+## 3. `server/guard/detectors.json` (DLP patterns)
+
+Extra patterns for sensitive data that the egress guard should recognise in outgoing emails, links and replies.
+
+```json
+{
+  "version": 1,
+  "detectors": [
+    {
+      "id": "DET-EXAMPLE-01",
+      "kind": "other",
+      "sensitivity": "high",
+      "label": "Short name shown in incidents",
+      "pattern": "PATTERN_HERE",
+      "case_sensitive": false
+    }
+  ]
+}
+```
+
+| Field | Required | Rules |
+|---|---|---|
+| `id` | yes | UPPERCASE letters, digits, dashes. Unique, e.g. `DET-PHONE-01` |
+| `kind` | yes | One of `phone`, `email`, `pan`, `aadhaar`, `salary`, `secret`, `other` |
+| `sensitivity` | yes | `high` or `critical` |
+| `label` | no | Plain-language name, e.g. "Indian mobile number" |
+| `pattern` | yes | JavaScript regex as a JSON string; the same doubled-backslash rule as `rules.json` applies |
+| `case_sensitive` | no | Default `false` |
+
+Unlike scanner rules, detectors run on the original text, without the clean-up step. Problems show under `dlp_detectors.problems` in `GET /api/health`. The file reloads automatically when it changes.

@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "detectors": [
+    {
+      "id": "DET-EXAMPLE-01",
+      "kind": "other",
+      "sensitivity": "high",
+      "label": "LABEL_HERE",
+      "pattern": "PATTERN_HERE",
+      "case_sensitive": false
+    }
+  ]
+}
