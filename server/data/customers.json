@@ -1,0 +1,222 @@
+[
+  {
+    "id": "C-202",
+    "name": "Aarav Shah",
+    "phone": "+91 9720000000",
+    "city": "Pune",
+    "orders": [
+      "871"
+    ],
+    "lifetime_value": 1200,
+    "deleted": false
+  },
+  {
+    "id": "C-203",
+    "name": "Diya Menon",
+    "phone": "+91 9720104729",
+    "city": "Jaipur",
+    "orders": [
+      "874"
+    ],
+    "lifetime_value": 12111,
+    "deleted": false
+  },
+  {
+    "id": "C-204",
+    "name": "Ishaan Pillai",
+    "phone": "+91 9720209458",
+    "city": "Indore",
+    "orders": [
+      "877"
+    ],
+    "lifetime_value": 23022,
+    "deleted": false
+  },
+  {
+    "id": "C-205",
+    "name": "Kavya Reddy",
+    "phone": "+91 9720314187",
+    "city": "Kochi",
+    "orders": [
+      "880"
+    ],
+    "lifetime_value": 9933,
+    "deleted": false
+  },
+  {
+    "id": "C-206",
+    "name": "Laksh Bhatia",
+    "phone": "+91 9720418916",
+    "city": "Lucknow",
+    "orders": [
+      "883"
+    ],
+    "lifetime_value": 20844,
+    "deleted": false
+  },
+  {
+    "id": "C-207",
+    "name": "Myra Das",
+    "phone": "+91 9720523645",
+    "city": "Nagpur",
+    "orders": [
+      "886"
+    ],
+    "lifetime_value": 7755,
+    "deleted": false
+  },
+  {
+    "id": "C-208",
+    "name": "Nikhil Saxena",
+    "phone": "+91 9720628374",
+    "city": "Surat",
+    "orders": [
+      "889"
+    ],
+    "lifetime_value": 82500,
+    "deleted": false
+  },
+  {
+    "id": "C-209",
+    "name": "Ojasvi Tandon",
+    "phone": "+91 9720733103",
+    "city": "Bhopal",
+    "orders": [
+      "872"
+    ],
+    "lifetime_value": 4837,
+    "deleted": false
+  },
+  {
+    "id": "C-210",
+    "name": "Parth Ghosh",
+    "phone": "+91 9720837832",
+    "city": "Mysuru",
+    "orders": [
+      "875"
+    ],
+    "lifetime_value": 15748,
+    "deleted": false
+  },
+  {
+    "id": "C-211",
+    "name": "Riddhi Jain",
+    "phone": "+91 9720942561",
+    "city": "Dehradun",
+    "orders": [
+      "878"
+    ],
+    "lifetime_value": 2659,
+    "deleted": false
+  },
+  {
+    "id": "C-212",
+    "name": "Samar Khanna",
+    "phone": "+91 9721047290",
+    "city": "Pune",
+    "orders": [
+      "881"
+    ],
+    "lifetime_value": 13570,
+    "deleted": false
+  },
+  {
+    "id": "C-213",
+    "name": "Tara Bhatt",
+    "phone": "+91 9721152019",
+    "city": "Jaipur",
+    "orders": [
+      "884"
+    ],
+    "lifetime_value": 24481,
+    "deleted": false
+  },
+  {
+    "id": "C-214",
+    "name": "Uday Mishra",
+    "phone": "+91 9721256748",
+    "city": "Indore",
+    "orders": [
+      "887"
+    ],
+    "lifetime_value": 11392,
+    "deleted": false
+  },
+  {
+    "id": "C-215",
+    "name": "Vanya Arora",
+    "phone": "+91 9721361477",
+    "city": "Kochi",
+    "orders": [
+      "890"
+    ],
+    "lifetime_value": 22303,
+    "deleted": false
+  },
+  {
+    "id": "C-216",
+    "name": "Yash Patil",
+    "phone": "+91 9721466206",
+    "city": "Lucknow",
+    "orders": [
+      "873"
+    ],
+    "lifetime_value": 8474,
+    "deleted": false
+  },
+  {
+    "id": "C-217",
+    "name": "Zoya Qureshi",
+    "phone": "+91 9721570935",
+    "city": "Nagpur",
+    "orders": [
+      "876"
+    ],
+    "lifetime_value": 19385,
+    "deleted": false
+  },
+  {
+    "id": "C-218",
+    "name": "Advait Sinha",
+    "phone": "+91 9721675664",
+    "city": "Surat",
+    "orders": [
+      "879"
+    ],
+    "lifetime_value": 6296,
+    "deleted": false
+  },
+  {
+    "id": "C-219",
+    "name": "Bhavna Chauhan",
+    "phone": "+91 9721780393",
+    "city": "Bhopal",
+    "orders": [
+      "882"
+    ],
+    "lifetime_value": 17207,
+    "deleted": false
+  },
+  {
+    "id": "C-220",
+    "name": "Chirag Dubey",
+    "phone": "+91 9721885122",
+    "city": "Mysuru",
+    "orders": [
+      "885"
+    ],
+    "lifetime_value": 4118,
+    "deleted": false
+  },
+  {
+    "id": "C-221",
+    "name": "Esha Mathur",
+    "phone": "+91 9721989851",
+    "city": "Dehradun",
+    "orders": [
+      "888"
+    ],
+    "lifetime_value": 15029,
+    "deleted": false
+  }
+]

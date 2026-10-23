@@ -1,0 +1,47 @@
+{
+  "roles": {
+    "admin": {
+      "tools": ["*"],
+      "data": { "employees": ["*"], "customers": ["*"] }
+    },
+    "hr": {
+      "tools": ["search_records", "read_document", "send_email", "fetch_url"],
+      "data": { "employees": ["*"], "customers": ["id", "name", "city"] },
+      "limits": { "employee_records_per_session": 10 }
+    },
+    "intern": {
+      "tools": ["search_records", "read_document", "fetch_url", "send_email"],
+      "data": { "employees": ["id", "name", "dept"], "customers": ["id", "name", "city"] },
+      "docs_max_classification": "internal",
+      "email_internal_only": true,
+      "limits": { "emails_per_session": 3 }
+    }
+  },
+  "approval_required": [
+    { "tool": "issue_refund", "when": "amount > 10000" },
+    { "tool": "delete_record" },
+    { "tool": "export_data" }
+  ],
+  "egress": {
+    "email_domains_allowed": ["nimbusretail.in"],
+    "url_domains_allowed": ["nimbusretail.in", "docs.nimbusretail.in"]
+  },
+  "thresholds": { "warn": 30, "block": 70 },
+  "document_classification": {
+    "q3_report.txt": "internal",
+    "hr_policy.txt": "public",
+    "it_config.txt": "critical",
+    "vendor_invoice_oct.txt": "external",
+    "partner_email.txt": "external"
+  },
+  "classification_order": ["public", "external", "internal", "confidential", "critical"],
+  "redaction": {
+    "mask": "[REDACTED]",
+    "roles": {
+      "admin": [],
+      "hr": ["customers.phone", "customers.orders", "customers.lifetime_value", "secrets"],
+      "intern": ["employees.salary", "employees.phone", "employees.pan_like", "employees.email",
+                 "customers.phone", "customers.orders", "customers.lifetime_value", "secrets"]
+    }
+  }
+}

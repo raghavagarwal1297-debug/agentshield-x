@@ -1,0 +1,18 @@
+{
+  "name": "agentshield-server",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon --watch . --ignore data/ --ignore tests/results/ index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

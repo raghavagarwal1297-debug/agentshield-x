@@ -1,0 +1,5 @@
+[
+  { "id": "admin_riya",  "name": "Riya Malhotra", "role": "admin",  "email": "riya.malhotra@nimbusretail.in" },
+  { "id": "hr_karan",    "name": "Karan Sethi",   "role": "hr",     "email": "karan.sethi@nimbusretail.in" },
+  { "id": "intern_aman", "name": "Aman Gupta",    "role": "intern", "email": "aman.gupta@nimbusretail.in" }
+]
