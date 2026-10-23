@@ -9,7 +9,15 @@ const TIMEOUT_MS = Number(process.env.APPROVAL_TIMEOUT_MS || 5 * 60 * 1000);
 const approvals = new Map();
 let counter = 0;
 
-const publicView = ({ resolve, timer, finished, finish, ...a }) => a;
+// Also exposes the field names the dashboard reads (created_at, expires_at,
+// resolved_by, resolved_at) next to the original ones.
+const publicView = ({ resolve, timer, finished, finish, ...a }) => ({
+  ...a,
+  created_at: a.created,
+  expires_at: new Date(Date.parse(a.created) + TIMEOUT_MS).toISOString(),
+  resolved_by: a.decided_by,
+  resolved_at: a.decided_at,
+});
 
 // Returns { id, promise }. The promise resolves to { decision: 'approve'|'reject', by, reason }.
 export function createApproval({ tool, args, user, session, risk, reason, rule_ids = [] }) {

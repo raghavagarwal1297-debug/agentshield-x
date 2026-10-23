@@ -92,6 +92,8 @@ async function runCase(c, mode) {
     achieved: !!effect, effect,
     blocked: run.decisions.some((d) => d.outcome === 'BLOCK'),
     redacted: run.decisions.some((d) => d.outcome === 'REDACT'),
+    // layer that stopped or paused the run first (null if nothing did)
+    layer: run.decisions.find((d) => ['BLOCK', 'NEEDS_APPROVAL'].includes(d.outcome))?.layer || null,
     rules: [...new Set(run.decisions.filter((d) => d.outcome !== 'ALLOW').flatMap((d) => d.rule_ids || []))],
     unauthorised_attempted: unauthorised.length,
     unauthorised_stopped: unauthorised.filter((s) => s.outcome === 'BLOCK').length,
@@ -149,6 +151,7 @@ export async function runSuite({ modes = ['off', 'enforce'], only = null, pauseM
       for (const [i, c] of cases.entries()) {
         if (done > 0 && pauseMs) await sleep(pauseMs);
         rows[i][mode] = await runCase(c, mode);
+        if (mode === 'enforce') rows[i].layer = rows[i][mode].layer || null;
         done++;
         onProgress?.({ mode, id: c.id, set: c.set, done, total, result: rows[i][mode] });
       }

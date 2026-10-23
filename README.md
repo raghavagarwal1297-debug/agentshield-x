@@ -51,6 +51,7 @@ Only the server: `npm run dev:server`, or `node server/index.js`.
 | `GUARD_MODE` | `enforce` | Mode at startup: `off`, `monitor`, `enforce` |
 | `APPROVAL_TIMEOUT_MS` | `300000` | Pending approvals auto-reject after this |
 | `ALLOW_POLICY_EDIT` | `true` | `false` disables `PUT /api/policy` |
+| `CORS_ORIGIN` | `http://localhost:5173,http://127.0.0.1:5173` | Origins allowed to call the API directly (the Vite proxy needs none) |
 
 Model choice: this Groq key has no Llama 3.x models, so the agent runs on
 `gpt-oss-120b`. On that model the poisoned-invoice attack succeeded **10/10**
@@ -128,11 +129,11 @@ Every guard decision has this shape:
 
 | Route | Body | Returns |
 |---|---|---|
-| `POST /api/chat` | `{user_id, message, doc_ids?, session_id?}` | `{reply, decisions, steps, request_id, pending_approval_id?}` |
+| `POST /api/chat` | `{user_id, message, doc_ids?, session_id?}` | `{reply, decisions, steps, request_id, pending_approval_id?}` plus dashboard fields `message, blocked, approval_required, layer_stopped_at, verdict, tool_calls`; each step also has `action, status` |
 | `GET /api/stream` | | SSE: `hello`, `decision`, `incident`, `approval_created`, `approval_resolved`, `guard_changed` |
-| `GET /api/incidents` | `?limit=` | incidents, newest first |
+| `GET /api/incidents` | `?limit=` | incidents, newest first. `explanation` is `{kya_hua, kyun_roka, kahan_se_aaya, kya_bacha, kya_karein}`; full text in `explanation_text`; `summary` = headline |
 | `GET /api/incidents/:id` | | one incident |
-| `POST /api/incidents/:id/report` | | `{report, generated_by}` |
+| `POST /api/incidents/:id/report` | | `{report: {text, classification, executive_summary, regulatory_impact, generated_by}, generated_by}` |
 | `GET /api/approvals` | `?status=` (default pending) | approvals |
 | `POST /api/approvals/:id` | `{decision: approve\|reject, by}` | `{ok, approval, result}` |
 | `GET/POST /api/guard` | `{mode?, layers?}` (partial) | `{mode, layers}` |
@@ -141,6 +142,8 @@ Every guard decision has this shape:
 | `GET /api/documents/:id` | | `{id, classification, content, hidden_spans}` |
 | `POST /api/tests/run` | `{mode: off\|enforce\|both, only?: [ids], pause_ms?}` | `{off, on, cases, ...}`; SSE `test_progress`, `test_finished`; 409 while a run is in progress |
 | `GET /api/tests/latest` | | the last saved run |
+| `GET /api/metrics` | | Metrics tab data from the last run; values never measured are `null` |
+| `POST /api/tests/heldout` | | 400 until `tests/heldout.json` exists |
 | `GET /api/reset` | | `{ok}` |
 | `GET /api/health` | | status, models, demo mode, rules/detectors loaded |
 

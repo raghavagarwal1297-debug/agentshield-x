@@ -132,7 +132,16 @@ export function createIncident(dec, ctx) {
     hidden_spans: dec.hidden_spans || [],
     attempted: dec.attempted || null,
     approval_id: dec.pending_approval_id || null,
-    explanation: [
+    summary: sections.headline,
+    // The dashboard reads these five keys; the full text is explanation_text.
+    explanation: {
+      kya_hua: sections.what_happened,
+      kyun_roka: sections.why,
+      kahan_se_aaya: sections.where_it_came_from,
+      kya_bacha: sections.what_was_protected,
+      kya_karein: sections.suggested_fix,
+    },
+    explanation_text: [
       sections.headline,
       `What happened : ${sections.what_happened}`,
       `Why           : ${sections.why}`,
@@ -144,6 +153,7 @@ export function createIncident(dec, ctx) {
     explanation_sections: sections,
     owasp,
   };
+  incident.timestamp = incident.ts;
   all.push(incident);
   writeJSON(FILE, all);
   return incident;
@@ -168,7 +178,7 @@ export async function writeReport(id) {
       model: judgeModel(),
       messages: [
         { role: 'system', content: 'You write short security incident reports for non-technical managers at Nimbus Retail. Plain English, no jargon, under 150 words, with these headings: Summary, Impact, What we did, Recommended next step.' },
-        { role: 'user', content: `Write the report for this incident record:\n${JSON.stringify({ ...inc, explanation_sections: undefined }, null, 2)}` },
+        { role: 'user', content: `Write the report for this incident record:\n${JSON.stringify({ ...inc, explanation: inc.explanation_text, explanation_text: undefined, explanation_sections: undefined, report: undefined }, null, 2)}` },
       ],
     });
     report = res.content?.trim();
@@ -177,7 +187,15 @@ export async function writeReport(id) {
     generated_by = 'template';
     report = `${inc.explanation}\n\n(The LLM report could not be generated: ${e.message})`;
   }
-  inc.report = { text: report, generated_by, ts: new Date().toISOString() };
+  inc.report = {
+    text: report, generated_by, ts: new Date().toISOString(),
+    // short fields shown on the dashboard's report card
+    classification: `${inc.would_block ? 'WOULD BLOCK' : inc.outcome} · ${inc.risk >= 70 ? 'HIGH' : inc.risk >= 30 ? 'MEDIUM' : 'LOW'} RISK`,
+    executive_summary: report,
+    regulatory_impact: (inc.owasp || []).includes('LLM02')
+      ? 'Personal or confidential data was involved. Record it in the data-protection log and review it with the DPO (DPDP Act 2023).'
+      : 'No personal-data rule was triggered in this incident.',
+  };
   writeJSON(FILE, all);
   return inc.report;
 }

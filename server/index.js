@@ -18,9 +18,12 @@ import { validatePolicy } from './guard/policy.js';
 import { bus } from './guard/events.js';
 import { runSuite, isRunning } from './tests/suite.js';
 import { LLMError, llmInfo } from './llm.js';
+import { chatView, metricsView } from './clientView.js';
 
 const app = express();
-app.use(cors());
+// The dashboard normally goes through the Vite proxy; direct calls from the
+// dev server origin are allowed too (CORS_ORIGIN, comma separated).
+app.use(cors({ origin: (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173').split(',') }));
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/api/health', (req, res) => {
@@ -69,9 +72,10 @@ app.get('/api/incidents/:id', (req, res) => {
   return inc ? res.json(inc) : res.status(404).json({ error: `Incident ${req.params.id} not found` });
 });
 // Manager-friendly report written by the judge model (template fallback).
+// -> { report: { text, classification, executive_summary, regulatory_impact, generated_by }, generated_by }
 app.post('/api/incidents/:id/report', async (req, res) => {
   const report = await writeReport(req.params.id);
-  return report ? res.json({ report: report.text, generated_by: report.generated_by }) : res.status(404).json({ error: `Incident ${req.params.id} not found` });
+  return report ? res.json({ report, generated_by: report.generated_by }) : res.status(404).json({ error: `Incident ${req.params.id} not found` });
 });
 
 // Policy. Editing is a demo feature: only an admin session (X-User-Id header)
@@ -107,13 +111,20 @@ app.post('/api/tests/run', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
-app.get('/api/tests/latest', (req, res) => {
+function latestRun() {
   try {
-    res.json(JSON.parse(fs.readFileSync(new URL('./tests/results/latest.json', import.meta.url), 'utf8')));
+    return JSON.parse(fs.readFileSync(new URL('./tests/results/latest.json', import.meta.url), 'utf8'));
   } catch {
-    res.status(404).json({ error: 'No test run yet' });
+    return null;
   }
+}
+app.get('/api/tests/latest', (req, res) => {
+  const run = latestRun();
+  return run ? res.json(run) : res.status(404).json({ error: 'No test run yet' });
 });
+// Metrics tab data from the last saved run; unmeasured values are null.
+app.get('/api/metrics', (req, res) => res.json(metricsView(latestRun())));
+app.post('/api/tests/heldout', (req, res) => res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' }));
 
 // Documents the user can attach. hidden_spans lets the UI highlight hidden text.
 app.get('/api/documents', (req, res) => {
@@ -178,16 +189,16 @@ app.post('/api/chat', async (req, res) => {
     paused.then((approvalId) => ({ approvalId })),
   ]);
   if (first.approvalId) {
-    return res.json(snapshot({
+    return res.json(chatView(snapshot({
       reply: `This action needs human approval (${first.approvalId}). NimbusAssist is paused until a reviewer approves or rejects it.`,
       pending_approval_id: first.approvalId,
-    }));
+    })));
   }
   if (first.error) {
     const f = failure(first.error);
     return res.status(f.status).json(f.body);
   }
-  res.json(first.result);
+  res.json(chatView(first.result));
 });
 
 function failure(e) {
@@ -218,7 +229,7 @@ app.post('/api/approvals/:id', async (req, res) => {
     return res.status(/not found/.test(e.message) ? 404 : 400).json({ ok: false, error: e.message });
   }
   const result = await waitForResult(approval.id);
-  res.json({ ok: true, approval, result });
+  res.json({ ok: true, approval, result: chatView(result) });
 });
 
 const PORT = process.env.PORT || 4000;
