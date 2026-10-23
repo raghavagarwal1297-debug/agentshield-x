@@ -1,13 +1,5 @@
 {
   "version": 1,
   "bonuses": { "hidden_text": 25, "obfuscation": 15 },
-  "rules": [
-    {
-      "id": "EXAMPLE-01",
-      "category": "other",
-      "pattern": "PATTERN_HERE",
-      "weight": 40,
-      "desc": "DESCRIPTION_HERE"
-    }
-  ]
+  "rules": []
 }
