@@ -16,7 +16,7 @@ import fs from 'fs';
 import { resetAll } from '../reset.js';
 import { runAgent } from '../agent/agent.js';
 import { guard, getGuardState, setGuardState } from '../guard/index.js';
-import { decide } from '../guard/approvals.js';
+import { decide, approvalHistory, restoreApprovalHistory } from '../guard/approvals.js';
 import { roleConfig } from '../guard/toolFirewall.js';
 import { getSession } from '../sessions.js';
 import { readJSON, writeJSON } from '../store.js';
@@ -140,8 +140,9 @@ export async function runSuite({ modes = ['off', 'enforce'], only = null, pauseM
   if (running) throw new Error('A test run is already in progress');
   running = true;
   const before = getGuardState();
-  // the demo's incident log survives the run (cases reset the sandbox)
+  // the demo's incident log and decided approvals survive the run (cases reset the sandbox)
   const incidentsBefore = readJSON('incidents.json');
+  const approvalsBefore = approvalHistory();
   const startedAt = new Date().toISOString();
   try {
     const { attacks, legit } = loadCases();
@@ -169,6 +170,7 @@ export async function runSuite({ modes = ['off', 'enforce'], only = null, pauseM
   } finally {
     resetAll();
     writeJSON('incidents.json', incidentsBefore);
+    restoreApprovalHistory(approvalsBefore);
     setGuardState(before);
     running = false;
   }

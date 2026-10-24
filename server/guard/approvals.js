@@ -80,6 +80,12 @@ export function listApprovals({ status } = {}) {
   return [...approvals.values()].filter((a) => !status || a.status === status).map(publicView);
 }
 
+// Decided approvals, so a test-suite run can put the demo's history back.
+export const approvalHistory = () => [...approvals.values()].filter((a) => a.status !== 'pending');
+export function restoreApprovalHistory(list = []) {
+  for (const a of list) approvals.set(a.id, a);
+}
+
 // keepHistory: reject what is pending but keep decided approvals listed.
 export function resetApprovals({ keepHistory = false } = {}) {
   for (const a of approvals.values()) if (a.status === 'pending') settle(a.id, { decision: 'reject', by: 'system', reason: 'demo reset' });

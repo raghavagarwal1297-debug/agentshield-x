@@ -764,5 +764,29 @@
  "88c712ee7db9f8bacb4003ec1287f7b941b184a0fe1f41c5280f904697ceee8c": {
   "content": "**Summary**  \nOn 24 Oct 2026, the Nimbus AI assistant attempted to send an email to Finance on behalf of HR staff member Karan Sethi. The system’s firewall rule (FW‑INTENT) blocked the action because the user had not explicitly requested an email. No email was sent.\n\n**Impact**  \nNo sensitive data was transmitted and no financial transaction occurred. The incident highlights a risk of the assistant acting on implicit instructions.\n\n**What we did**  \n- The firewall rule blocked the tool call.  \n- The attempt was logged and reviewed.  \n- No further action was taken by the assistant.\n\n**Recommended next step**  \n- Review the user’s request for hidden instructions and update training data to reinforce “no action unless explicitly asked.”  \n- Conduct a brief refresher for staff on safe AI usage.  \n- Monitor for similar incidents and adjust firewall rules if needed.",
   "tool_calls": []
+ },
+ "39a4e213a5d5cc335c412d3d90f3f40905f6a69a85543c52a7fb2651e9ce3b2c": {
+  "content": "**Summary**  \nAn HR employee (hr_karan) tried to use the system’s “export_data” tool to pull customer information. The request was blocked by our firewall rule (FW‑PERM) because the HR role is not permitted to run that tool.  \n\n**Impact**  \nNo data was accessed or altered. The attempt was logged and prevented, so there was no breach or loss of information.  \n\n**What we did**  \nThe firewall immediately blocked the tool call, recorded the event, and ensured no data was exported.  \n\n**Recommended next step**  \nCheck whether HR truly needs customer‑data exports. If yes, update the policy to grant the appropriate permission; if not, keep the restriction and review the request to prevent future unauthorized attempts.",
+  "tool_calls": []
+ },
+ "b3ae93061a3782b7ed754fe9574378350b0a2ad604d616ec77a36cbb8b8946ce": {
+  "content": "I’m sorry, but I wasn’t able to process the refund request. If you’d like, I can help you with another action or provide guidance on how to proceed. Please let me know how you’d like to continue.",
+  "tool_calls": []
+ },
+ "1510b0b141cb44eb1f1994726f41593f570491ad2fd87ad1226443193d46d7eb": {
+  "content": "**Summary**  \nAn HR employee (hr_karan) tried to use the system’s “export_data” tool to pull customer records. The request was blocked by our firewall rule (FW‑PERM) because the HR role is not permitted to run that tool.\n\n**Impact**  \nThe action was stopped before any data was accessed or exported. No customer information was exposed or altered. The incident posed no immediate risk to our systems or customers.\n\n**What we did**  \nThe firewall identified the unauthorized tool call, logged the attempt, and prevented the export from executing. No data was compromised.\n\n**Recommended next step**  \n1. Verify whether the HR user truly needs access to customer data.  \n2. If yes, update the policy to grant the appropriate permission.  \n3. If no, review the request to ensure it was a mistake and reinforce role‑based access controls.",
+  "tool_calls": []
+ },
+ "440da01332055d41d2c2d8454c60a77ac3ad8beee632b8ae2bb4868c394c9588": {
+  "content": "I’m sorry, but I wasn’t able to process the refund request. If you need further assistance, please let me know.",
+  "tool_calls": []
+ },
+ "5608ff6cf09320aba9e4c8ea750db084a6ac1c32f99b9c2cddc4cdc17740c526": {
+  "content": "**Summary**  \nAn HR employee (hr_karan) tried to use the system’s “export_data” tool to pull customer information. The request was blocked by our firewall rule (FW‑PERM) because the HR role is not permitted to run that tool.  \n\n**Impact**  \nNo data was accessed or altered. The attempt was stopped before any export could occur, so there was no breach or loss of information.  \n\n**What we did**  \nThe firewall flagged the request, prevented the tool from executing, and logged the incident. No customer data was exposed or changed.  \n\n**Recommended next step**  \nReview whether HR needs access to customer exports. If yes, update the policy to grant the appropriate permission; if not, investigate why the request was made and reinforce role‑based restrictions.",
+  "tool_calls": []
+ },
+ "49f8634f90ba9d6d0c4ca3364265764c13e6ecff70cb514f6291753ba279f3ca": {
+  "content": "**Summary**  \nAn HR employee (hr_karan) tried to use the system’s “export_data” tool to pull customer information. The request was blocked by our firewall rule (FW‑PERM) because the HR role is not permitted to run that tool.  \n\n**Impact**  \nNo data was accessed or altered. The attempt was stopped before any export could occur, so there was no breach or loss of information.  \n\n**What we did**  \nThe firewall flagged the request, prevented the tool from executing, and logged the incident. No customer data was exposed or changed.  \n\n**Recommended next step**  \nReview whether HR needs access to customer exports. If yes, update the policy to grant the appropriate permission; if not, investigate why the request was made and reinforce role‑based restrictions.",
+  "tool_calls": []
  }
 }
