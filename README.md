@@ -23,7 +23,7 @@ risky steps and writes a plain-language incident for every decision.
 | Guard modes (off / monitor / enforce) + per-layer toggles | Done |
 | Test suite | Done: runner, `POST /api/tests/run`, CLI. Attack set = the 6 attack demo scenarios; legit set = 20 tasks. Held-out set pending |
 | Cached demo mode | Done |
-| Dashboard (`client/`) | Built by the frontend teammate |
+| Dashboard (`client/`) | Six-tab console (Mission, Investigate, Approvals, Results, Test Lab, Policy), Autopilot on cached replay |
 
 ## Setup
 
@@ -96,20 +96,36 @@ Say on the slide that cached mode is a replay.
 
 ## Dashboard (client/)
 
-`client/src/api.js` has `USE_MOCK = false`, so the dashboard talks to the real API
-through the Vite proxy (`/api` -> :4000). In live mode it never falls back to
-mock data: failed reads keep the current screen, failed writes show the error.
-The scenario buttons come from `client/mock/chat.json` and send their own
-`user_id`. Their messages differ slightly from `server/tests/scenarios.js`.
+A six-tab console (design: `design/spec.md`), wired to the real API through the
+Vite proxy (`/api` -> :4000). `client/src/api.js` has `USE_MOCK = false`; in live
+mode it never falls back to mock data.
+
+| Tab | What it does |
+|---|---|
+| MISSION | Guided demo of the 7 scenarios (story, hero number measured from the tool steps that ran, OFF/MONITOR/ENFORCE before-after, inline approve/reject) or free chat; centre pipeline in 2D (default) or 3D, or the conversation; terminal, alerts, live feed |
+| INVESTIGATE | Incidents by risk, flow with the stopping gate, evidence card, case packet (manager report) |
+| APPROVALS | Pending sign-offs with auto-reject countdown, exact arguments, approve/reject with confirm, the resumed answer |
+| RESULTS | Scorecard and charts from the last saved evaluation run, this session's activity |
+| TEST LAB | Start a run (mode, pause, cases, demo-cache-only), live tiles, case lookup |
+| POLICY | Policy as tables, JSON editor with server validation, admin-only save |
+
+The header carries the guard mode, layer toggles (egress marked not built),
+acting user, server status (live / cached / offline), reset, sound and Autopilot.
+
+**Autopilot** plays scenarios 1-7 with `replay: true`: every LLM answer must come
+from `server/cache/llm_cache.json`, so it makes no Groq calls (verified with an
+invalid API key). A scenario missing from the cache stops it with a message. It
+waits for a human on the refund approval. The cache holds the dashboard's 7
+scenario prompts for OFF, MONITOR and ENFORCE.
 
 Presenter notes:
-- Scenario 7 switches the scanner layer off and leaves it off. Turn it back on
-  in the top bar before running scenario 2 again.
-- The Metrics tab shows the last saved test run (`/api/metrics`). Held-out
-  numbers stay empty until `tests/heldout.json` exists.
-- "Run test suite" runs 26 cases in both modes (52 runs) live with an 8 s pause; it takes about 15-20 minutes and uses a lot of Groq quota.
+- Each guided scenario starts from clean data with its own layer set (scenario 7
+  turns the scanner off just for that run); incidents are kept.
+- The Test Lab resets the sandbox for every case and switches the guard, so do
+  not run it during a live demo. A full live run is 52 cases.
+- Results always shows the last saved run (`server/tests/results/latest.json`).
 
-## Architecture
+## Architecture## Architecture
 
 ```
 User (role from users.json)        Untrusted content (docs, web pages, tool output)
@@ -144,7 +160,7 @@ Every guard decision has this shape:
 
 | Route | Body | Returns |
 |---|---|---|
-| `POST /api/chat` | `{user_id, message, doc_ids?, session_id?}` | `{reply, decisions, steps, request_id, pending_approval_id?}` plus dashboard fields `message, blocked, approval_required, layer_stopped_at, verdict, tool_calls`; each step also has `action, status` |
+| `POST /api/chat` | `{user_id, message, doc_ids?, session_id?, replay?}` (`replay: true` answers only from the demo cache; a miss is 503 `cache_miss`) | `{reply, decisions, steps, request_id}` plus `pending_approval_id` while paused or `approval_ids` (decided in this run) when finished, and dashboard fields `message, blocked, approval_required, layer_stopped_at, verdict, tool_calls`; each step also has `action, status` |
 | `GET /api/stream` | | SSE: `hello`, `decision`, `incident`, `approval_created`, `approval_resolved`, `guard_changed` |
 | `GET /api/incidents` | `?limit=` | incidents, newest first. `explanation` is `{kya_hua, kyun_roka, kahan_se_aaya, kya_bacha, kya_karein}`; full text in `explanation_text`; `summary` = headline |
 | `GET /api/incidents/:id` | | one incident |
@@ -155,11 +171,14 @@ Every guard decision has this shape:
 | `GET/PUT /api/policy` | policy JSON + header `X-User-Id: admin_riya` | policy JSON |
 | `GET /api/documents` | | `[{id, title, classification, hidden_spans}]` |
 | `GET /api/documents/:id` | | `{id, classification, content, hidden_spans}` |
-| `POST /api/tests/run` | `{mode: off\|enforce\|both, only?: [ids], pause_ms?}` | `{off, on, cases, ...}`; SSE `test_progress`, `test_finished`; 409 while a run is in progress |
+| `POST /api/tests/run` | `{mode: off\|enforce\|both, only?: [ids], pause_ms?, replay?}` | `{off, on, cases, ...}`; SSE `test_progress`, `test_finished`; 409 while a run is in progress |
 | `GET /api/tests/latest` | | the last saved run |
 | `GET /api/metrics` | | Metrics tab data from the last run; values never measured are `null` |
+| `GET /api/tests/heldout` | | `{available, reason}` |
 | `POST /api/tests/heldout` | | 400 until `tests/heldout.json` exists |
-| `GET /api/reset` | | `{ok}` |
+| `GET /api/tests/cases` | | `[{id, set, title, role}]` for the Test Lab |
+| `POST /api/policy/validate` | policy JSON | `{valid, problems}` (dry run, changes nothing) |
+| `GET /api/reset` | `?keep=incidents` keeps the incident log | `{ok, kept_incidents}` |
 | `GET /api/health` | | status, models, demo mode, rules/detectors loaded |
 
 Notes for the frontend:
