@@ -8,6 +8,7 @@ import Toasts from './console/Toasts.jsx';
 import Mission from './console/tabs/Mission.jsx';
 import Investigate from './console/tabs/Investigate.jsx';
 import Approvals from './console/tabs/Approvals.jsx';
+import Results from './console/tabs/Results.jsx';
 
 // Previous dashboard screens, hosted until each tab is rebuilt.
 import MetricsTab from './components/MetricsTab.jsx';
@@ -25,6 +26,7 @@ function ActiveTab() {
     case 'approvals':
       return <Approvals />;
     case 'results':
+      return <Results />;
     case 'testlab':
       return <Legacy><MetricsTab metricsData={c.metrics} /></Legacy>;
     case 'policy':
