@@ -10,6 +10,7 @@ import { Panel, KV } from '../ui.jsx';
 import { userById, outcomeClass } from '../format.js';
 import { MISSIONS, secretValues } from '../missions.js';
 import Pipeline2D from '../Pipeline2D.jsx';
+import Pipeline3D from '../Pipeline3D.jsx';
 import Terminal from '../Terminal.jsx';
 import Conversation from '../Conversation.jsx';
 import DocViewer from '../DocViewer.jsx';
@@ -25,6 +26,8 @@ export default function Mission() {
   const c = useConsole();
   const [mode, setMode] = useState('guided'); // guided | free
   const [view, setView] = useState('pipeline'); // pipeline | conversation
+  const [dim, setDim] = useState(() => { try { return localStorage.getItem('ax_pipeline_dim') || '2d'; } catch { return '2d'; } });
+  const chooseDim = (d) => { setDim(d); try { localStorage.setItem('ax_pipeline_dim', d); } catch { /* storage blocked */ } };
   const [idx, setIdx] = useState(0);
   const [run, setRun] = useState(EMPTY_RUN);
   const [messages, setMessages] = useState([]);
@@ -215,11 +218,19 @@ export default function Mission() {
               <button type="button" data-v="plain" aria-pressed={view === 'pipeline'} onClick={() => setView('pipeline')}>PIPELINE</button>
               <button type="button" data-v="plain" aria-pressed={view === 'conversation'} onClick={() => setView('conversation')}>CONVERSATION{messages.length ? ` · ${messages.filter((m) => m.role === 'user').length}` : ''}</button>
             </div>
+            {view === 'pipeline' && (
+              <div className="seg" role="group" aria-label="Pipeline view">
+                <button type="button" data-v="plain" aria-pressed={dim === '2d'} onClick={() => chooseDim('2d')}>2D</button>
+                <button type="button" data-v="plain" aria-pressed={dim === '3d'} onClick={() => chooseDim('3d')}>3D</button>
+              </div>
+            )}
             {run.replay && <span className="chip c-approval">REPLAY · NO LLM CALLS</span>}
           </div>
           {view === 'pipeline' ? (
-            <Pipeline2D decisions={run.decisions} steps={run.steps} guard={c.guard} user={run.user || c.user}
-              docIds={run.docIds || []} running={busy} runKey={run.key} requestId={run.requestId} />
+            React.createElement(dim === '3d' ? Pipeline3D : Pipeline2D, {
+              decisions: run.decisions, steps: run.steps, guard: c.guard, user: run.user || c.user,
+              docIds: run.docIds || [], running: busy, runKey: run.key, requestId: run.requestId,
+            })
           ) : (
             <div className="panel-body"><Conversation messages={messages} busy={busy} /></div>
           )}
