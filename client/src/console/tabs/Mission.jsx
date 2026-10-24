@@ -130,18 +130,23 @@ export default function Mission() {
 
   // ---------- Autopilot (replay only: no live LLM calls) ----------
   const stopFlag = useRef(false);
+  const pilotRun = useRef(0); // id of the current Autopilot run; a stop or a new start ends older loops
   const latest = useRef(null);
   latest.current = { runScenario, c };
   useEffect(() => latest.current.c.registerAutopilot({
     start: async () => {
+      if (latest.current.c.autopilot.running) return; // already playing
       const { c: ctx } = latest.current;
+      const me = ++pilotRun.current;
       stopFlag.current = false;
+      const stopped = () => stopFlag.current || pilotRun.current !== me;
       ctx.setAutopilotRunning(true);
       setMode('guided');
       try {
-        for (let i = 0; i < SCENARIOS.length && !stopFlag.current; i++) {
+        for (let i = 0; i < SCENARIOS.length && !stopped(); i++) {
           setIdx(i);
           await sleep(900);
+          if (stopped()) break; // stopped during the short pause: send nothing more
           const r = await latest.current.runScenario(i, { replay: true });
           if (r.status === 'error') {
             ctx.toast('block', 'Autopilot stopped', r.cacheMiss
@@ -149,17 +154,17 @@ export default function Mission() {
             break;
           }
           // wait for a human decision on any pending approval, then for the resumed run
-          while (runRef.current.status === 'paused' && !stopFlag.current) await sleep(300);
-          for (let w = 0; w < 100 && runRef.current.status === 'resuming' && !stopFlag.current; w++) await sleep(300);
+          while (runRef.current.status === 'paused' && !stopped()) await sleep(300);
+          for (let w = 0; w < 100 && runRef.current.status === 'resuming' && !stopped(); w++) await sleep(300);
           if (i < SCENARIOS.length - 1) {
-            for (let w = 0; w < AUTOPILOT_PAUSE_MS / 250 && !stopFlag.current; w++) await sleep(250);
+            for (let w = 0; w < AUTOPILOT_PAUSE_MS / 250 && !stopped(); w++) await sleep(250);
           }
         }
       } finally {
-        ctx.setAutopilotRunning(false);
+        if (pilotRun.current === me) ctx.setAutopilotRunning(false);
       }
     },
-    stop: () => { stopFlag.current = true; },
+    stop: () => { stopFlag.current = true; pilotRun.current++; latest.current.c.setAutopilotRunning(false); },
   }), []);
   useEffect(() => () => { stopFlag.current = true; }, []); // leaving the tab stops Autopilot
 
@@ -359,8 +364,8 @@ function FreeCompose({ docs, selected, setSelected, onViewDoc, onPick, user }) {
 }
 
 function Alerts({ alerts, run, onOpen }) {
-  if (!run.requestId) return <p className="empty">Incidents created by the current request appear here.</p>;
-  if (!alerts.length) return <p className="empty">No incidents for {run.requestId}.</p>;
+  if (!run.requestId) return <p className="empty">Press Run scenario on the left. Incidents from that request appear here.</p>;
+  if (!alerts.length) return <p className="empty">No incidents for {run.requestId}: the guard did not block or pause anything. Try scenario 2 or 3 in ENFORCE.</p>;
   return (
     <div>
       {alerts.map((i) => (

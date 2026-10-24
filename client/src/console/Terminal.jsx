@@ -51,7 +51,7 @@ export default function Terminal({ runKey, ...run }) {
   const partial = !reduced && typed.line < lines.length ? lines[typed.line] : null;
   return (
     <div className="term" ref={box} style={{ height: '100%', overflow: 'auto' }} aria-live="polite">
-      {!lines.length && <div className="wait">waiting for a request...</div>}
+      {!lines.length && <div className="wait">waiting for a request... press Run scenario or send a message</div>}
       {visible.map((l, i) => <div key={i} className={l.cls}>{l.text}</div>)}
       {partial && <div className={partial.cls}>{partial.text.slice(0, typed.ch)}<span className="caret" /></div>}
       {!partial && lines.length > 0 && !reduced && <span className="caret" />}

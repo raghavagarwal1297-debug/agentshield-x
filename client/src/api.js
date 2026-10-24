@@ -770,6 +770,12 @@ export async function getTestCases() {
   return [];
 }
 
+// Recent guard decisions kept by the server (newest first) for the feed and ticker.
+export async function getRecentDecisions() {
+  if (activeSource === 'live') return liveRead('/api/decisions');
+  return null;
+}
+
 export async function getHeldoutStatus() {
   if (activeSource === 'live') return liveRead('/api/tests/heldout');
   return { available: false, reason: 'Held-out set not available in mock mode.' };
@@ -782,26 +788,29 @@ export async function validatePolicy(policy) {
 
 export function subscribeToStream(onEvent, onError) {
   if (activeSource === 'live') {
-    try {
-      const eventSource = new EventSource('/api/stream');
-      eventSource.onmessage = (e) => {
-        try {
-          const data = JSON.parse(e.data);
-          onEvent(data);
-        } catch {
-          onEvent({ raw: e.data });
-        }
-      };
+    // A browser EventSource gives up for good when the proxy answers with an
+    // error status (backend down), so reopen it ourselves every few seconds.
+    let eventSource = null;
+    let retry = null;
+    let closed = false;
+    const open = () => {
+      if (closed) return;
+      eventSource = new EventSource('/api/stream');
       for (const type of ['hello', 'decision', 'incident', 'approval_created', 'approval_resolved', 'guard_changed', 'test_progress', 'test_finished']) {
-        eventSource.addEventListener(type, (e) => onEvent({ type, data: JSON.parse(e.data) }));
+        eventSource.addEventListener(type, (e) => {
+          try { onEvent({ type, data: JSON.parse(e.data) }); } catch { /* malformed event */ }
+        });
       }
       eventSource.onerror = (err) => {
         if (onError) onError(err);
+        if (eventSource.readyState === EventSource.CLOSED && !closed) {
+          clearTimeout(retry);
+          retry = setTimeout(open, 3000);
+        }
       };
-      return () => eventSource.close();
-    } catch (err) {
-      console.warn('Live EventSource creation failed, subscribing to mock stream:', err);
-    }
+    };
+    open();
+    return () => { closed = true; clearTimeout(retry); eventSource?.close(); };
   }
 
   // Mock subscriber

@@ -95,7 +95,7 @@ export default function Approvals() {
 
       <div className="cx-col">
         <Panel className="fill" title="Proposed action" titleClass="cyan" meta={a ? `${a.id} · ${a.status}` : null}>
-          {!a ? <p className="empty">Select a request on the left.</p> : (
+          {!a ? <p className="empty">{all.length ? 'Select a request on the left.' : 'No approvals yet. On the Mission tab, run scenario 5 (Big refund) with the guard ON.'}</p> : (
             <div className="appr-main">
               <div className="appr-hero">
                 <span className="appr-tool mono">{a.tool}</span>
@@ -132,7 +132,7 @@ export default function Approvals() {
 
       <div className="cx-col right">
         <Panel className="fill" title="Decision">
-          {!a ? <p className="empty">No request selected.</p> : a.status === 'pending' ? (
+          {!a ? <p className="empty">{all.length ? 'No request selected.' : 'Approve and reject buttons appear here when a request is waiting.'}</p> : a.status === 'pending' ? (
             <div className="appr-decide">
               <p>Reviewing as <b className="cyan">{c.user.name}</b> ({c.user.role}).</p>
               <ConfirmButton className="cta" label="Approve" question={`Approve ${actionText(a)}?`} confirmLabel="Approve"

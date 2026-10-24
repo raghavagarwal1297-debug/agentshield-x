@@ -265,6 +265,7 @@ export default function Pipeline3D(props) {
           </span>
         ))}
       </div>
+      {!decisions.length && !running && <div className="pipe-empty">Press RUN SCENARIO to send a request through the guard</div>}
       <div className="pipe-hint">Drag to rotate · double-click to reset</div>
       <div className="pipe-stats mono">{requestId || 'NO REQUEST'} · CHECKS {decisions.length} · GATES {off ? 0 : layersOn}/4 · YAW {yaw}°</div>
       <div className="pipe-mode mono">{running ? 'SCANNING' : waiting ? 'WAITING FOR SIGN-OFF' : 'IDLE'} · GUARD {String(guard?.mode || '').toUpperCase()} · 3D VIEW</div>

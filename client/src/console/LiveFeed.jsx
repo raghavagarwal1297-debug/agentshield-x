@@ -30,7 +30,7 @@ export default function LiveFeed() {
         </div>
         <input className="input mono" placeholder="Search rule, tool, user, request" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search decisions" />
       </div>
-      {!list.length && <p className="empty">{events.length ? 'Nothing matches this filter.' : 'No guard decisions yet.'}</p>}
+      {!list.length && <p className="empty">{events.length ? 'Nothing matches this filter.' : 'No guard decisions yet. Run a scenario or send a message to fill the feed.'}</p>}
       <div className="feed-list">
         {list.map((d, i) => (
           <button key={d._k} type="button" className={`feed-row ${list[i - 1]?.request_id && list[i - 1].request_id === d.request_id ? 'joined' : ''}`}

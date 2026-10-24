@@ -109,3 +109,5 @@
 .p3l.core { margin-top: 36px; }
 .p3l.p3l-ring { margin-top: -10px; font-size: 10px; letter-spacing: 0.12em; }
 .p3l.tool { align-items: flex-end; margin-left: -140px; margin-top: -8px; text-align: right; }
+
+.pipe-empty { position: absolute; left: 0; right: 0; bottom: 48px; text-align: center; font-family: var(--f-mono); font-size: 12.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); pointer-events: none; }

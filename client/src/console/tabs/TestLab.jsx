@@ -144,7 +144,7 @@ export default function TestLab() {
             <span className="panel-meta">{tiles.items.length ? `${tiles.items.filter((t) => t.r).length} / ${tiles.total || tiles.items.length}` : ''}</span>
           </div>
           <div className="panel-body">
-            {!tiles.items.length ? <div className="tl-empty" /> : (
+            {!tiles.items.length ? <p className="empty">Pick cases on the left and press Run suite. Each case lands here as a tile.</p> : (
               ['off', 'enforce'].filter((m) => tiles.items.some((t) => t.mode === m)).map((m) => (
                 <div key={m} className="tl-mode">
                   <div className="tl-mode-h">Guard {m === 'off' ? 'OFF' : 'ENFORCE'}</div>
@@ -187,6 +187,7 @@ export default function TestLab() {
         </Panel>
         <Panel title="Case lookup">
           <input className="input mono" placeholder="S2 or L06" value={lookup} onChange={(e) => setLookup(e.target.value)} aria-label="Case id" />
+          {!lookup.trim() && <p className="empty">Type a case id (S2, L06) or click a tile.</p>}
           {lookup.trim() && !caseRow && !liveRow.length && <p className="empty">No case {lookup} in the last run.</p>}
           {(caseRow ? ['off', 'enforce'].map((m) => [m, caseRow[m]]) : liveRow.map((p) => [p.mode, p.result])).filter(([, r]) => r).map(([m, r]) => (
             <div key={m} className="tl-case">

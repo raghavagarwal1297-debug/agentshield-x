@@ -159,6 +159,7 @@ export default function Pipeline2D({ decisions = [], steps = [], guard, user, do
           );
         })}
       </svg>
+      {!decisions.length && !running && <div className="pipe-empty">Press RUN SCENARIO to send a request through the guard</div>}
       <div className="pipe-hint">{off ? 'Guard OFF: every step goes straight through' : 'Each packet is one guard check, in order'}</div>
       <div className="pipe-stats mono">
         {requestId || 'NO REQUEST'} · CHECKS {decisions.length} · STEPS {steps.length} · GATES {off ? 0 : layersOn}/4

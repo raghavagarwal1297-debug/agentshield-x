@@ -1,7 +1,7 @@
 // RESULTS tab (design/spec.md §4.5): scorecard of the last evaluation run,
 // per-attack outcomes, latency, this browser session's activity, and what got
 // through. Values that were never measured show "—"; nothing is invented.
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, LabelList } from 'recharts';
 import { useConsole } from '../store.jsx';
 import { Panel, KV } from '../ui.jsx';
@@ -39,6 +39,7 @@ function Score({ label, off, on, unit = '%', good = 'low', hint }) {
 
 export default function Results() {
   const c = useConsole();
+  useEffect(() => { c.refreshResults(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const run = c.latestRun;
   const off = run?.off || {};
   const on = run?.on || {};
@@ -113,7 +114,7 @@ export default function Results() {
         <Panel className="fill" title="Evaluation" titleClass="cyan" meta={run ? `${attacks.length} attacks · ${legit.length} legit tasks` : null} bodyClass="res-centre">
           <section>
             <h3 className="res-h">Attack outcomes</h3>
-            {!attacks.length ? <p className="empty">No attack cases in the last run.</p> : (
+            {!attacks.length ? <p className="empty">{run ? 'The last run had no attack cases. Include S2-S7 in a Test Lab run.' : 'No run yet. Press Run suite on the Test Lab tab.'}</p> : (
               <table className="matrix">
                 <thead><tr><th>Attack</th><th>Guard OFF</th><th>Guard ON</th><th>Stopped by</th></tr></thead>
                 <tbody>
@@ -132,7 +133,7 @@ export default function Results() {
 
           <section>
             <h3 className="res-h">Average time per request (ms)</h3>
-            {!latency.length ? <p className="empty">No latency measured yet.</p> : (
+            {!latency.length ? <p className="empty">No latency measured yet. Run the suite on the Test Lab tab.</p> : (
               <div className="chart" style={{ height: 150 }}>
                 <ResponsiveContainer>
                   <BarChart data={latency} layout="vertical" margin={{ top: 4, right: 60, bottom: 4, left: 10 }} barCategoryGap={8}>
@@ -161,7 +162,7 @@ export default function Results() {
             <div className="session-charts">
               <div>
                 <div className="res-sub">Guard checks per minute</div>
-                {!session.trend.length ? <p className="empty">No activity in this browser session yet.</p> : (
+                {!session.trend.length ? <p className="empty">No activity in this browser session yet. Run a scenario on the Mission tab.</p> : (
                   <>
                     <div className="legend">
                       <span><i style={{ background: '#4ce38c' }} />Allowed</span>
@@ -206,12 +207,12 @@ export default function Results() {
 
       <div className="cx-col right">
         <Panel title="What got through" meta={run ? `${gotThrough.length} with guard ON` : null}>
-          {!run ? <p className="empty">No run yet.</p> : !gotThrough.length ? <p className="empty">No attack succeeded with the guard ON in the last run.</p> : gotThrough.map((x) => (
+          {!run ? <p className="empty">No run yet. Press Run suite on the Test Lab tab.</p> : !gotThrough.length ? <p className="empty">No attack succeeded with the guard ON in the last run.</p> : gotThrough.map((x) => (
             <div key={x.id} className="ev"><div className="id">{x.id} · {x.enforce.tools.join(' ') || 'reply'}</div><div className="tx">{x.title}: {x.enforce.effect}</div></div>
           ))}
         </Panel>
         <Panel title="False positives" meta={run ? `${fps.length} of ${on.legit?.valid ?? 0}` : null}>
-          {!run ? <p className="empty">No run yet.</p> : (
+          {!run ? <p className="empty">No run yet. Press Run suite on the Test Lab tab.</p> : (
             <>
               {!fps.length && <p className="empty">No legit task was blocked or left unfinished.</p>}
               {fps.map((x) => (

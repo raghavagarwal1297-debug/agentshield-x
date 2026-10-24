@@ -55,7 +55,10 @@ app.get('/api/stream', (req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   send('hello', getGuardState());
-  const handlers = STREAM_EVENTS.map((name) => [name, (data) => send(name, data)]);
+  // during a test-suite run the cases' own checks are not streamed (Test Lab
+  // follows test_progress instead), so the live feed and incident list stay clean
+  const quietDuringTests = ['decision', 'incident', 'approval_created', 'approval_resolved'];
+  const handlers = STREAM_EVENTS.map((name) => [name, (data) => { if (!(isRunning() && quietDuringTests.includes(name))) send(name, data); }]);
   handlers.forEach(([name, fn]) => bus.on(name, fn));
   const ping = setInterval(() => res.write(': ping\n\n'), 20000);
   req.on('close', () => {
@@ -63,6 +66,12 @@ app.get('/api/stream', (req, res) => {
     handlers.forEach(([name, fn]) => bus.off(name, fn));
   });
 });
+
+// Recent guard decisions (newest first), so a page opened later still shows
+// the live feed and ticker. Kept in memory; a full reset clears it.
+const recentDecisions = [];
+bus.on('decision', (d) => { if (isRunning()) return; recentDecisions.unshift(d); if (recentDecisions.length > 300) recentDecisions.pop(); });
+app.get('/api/decisions', (req, res) => res.json(recentDecisions.slice(0, Math.min(Number(req.query.limit) || 300, 300))));
 
 // Incidents (newest first)
 app.get('/api/incidents', (req, res) => {
@@ -168,6 +177,7 @@ app.get('/api/documents/:id', (req, res) => {
 app.get('/api/reset', (req, res) => {
   const keepIncidents = req.query.keep === 'incidents';
   resetAll({ keepIncidents });
+  if (!keepIncidents) recentDecisions.length = 0;
   res.json({ ok: true, kept_incidents: keepIncidents });
 });
 

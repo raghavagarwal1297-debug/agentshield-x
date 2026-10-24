@@ -40,6 +40,7 @@ export default function Investigate() {
     if ((!selected || !c.incidents.some((i) => i.id === selected)) && list[0]) setSelected(list[0].id);
   }, [list, selected, c.incidents]);
 
+  useEffect(() => { c.refreshIncidents(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const inc = c.incidents.find((i) => i.id === selected) || null;
 
   const openReport = async () => {
@@ -86,12 +87,12 @@ export default function Investigate() {
       </div>
 
       <div className="cx-col">
-        {inc ? <Flow inc={inc} events={c.events} onReport={openReport} /> : <Panel className="fill"><p className="empty">Select an incident.</p></Panel>}
+        {inc ? <Flow inc={inc} events={c.events} onReport={openReport} /> : <Panel className="fill"><p className="empty">{c.incidents.length ? 'Select an incident on the left.' : 'Incidents appear when the guard blocks or pauses something. On the Mission tab, set ENFORCE and run scenario 2 or 3.'}</p></Panel>}
       </div>
 
       <div className="cx-col right">
         <Panel className="fill" title="Evidence">
-          {inc ? <Evidence inc={inc} /> : <p className="empty">No incident selected.</p>}
+          {inc ? <Evidence inc={inc} /> : <p className="empty">{c.incidents.length ? 'Select an incident to see its evidence.' : 'Run a scenario on the Mission tab to see evidence here.'}</p>}
         </Panel>
       </div>
 

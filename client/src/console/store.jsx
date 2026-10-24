@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   checkHealth, getGuardConfig, setGuardConfig, resetSandbox, getDocuments, getApprovals,
-  getIncidents, getPolicy, getMetrics, getLatestRun, subscribeToStream, resolveApproval,
+  getIncidents, getPolicy, getMetrics, getLatestRun, subscribeToStream, resolveApproval, getRecentDecisions,
 } from '../api.js';
 import { USERS } from './format.js';
 import { beep } from './sound.js';
@@ -55,26 +55,37 @@ export function ConsoleProvider({ children }) {
   }, []);
   const refreshPolicy = useCallback(async () => { const p = await getPolicy(); if (p) setPolicy(p); }, []);
 
-  // initial load + health polling
-  useEffect(() => {
-    (async () => {
-      const [g, docs] = await Promise.all([getGuardConfig(), getDocuments()]);
-      if (g) setGuardState(g);
-      if (docs) setDocuments(docs);
-    })();
-    refreshHealth();
-    refreshApprovals();
-    refreshIncidents();
-    refreshResults();
-    refreshPolicy();
-    const t = setInterval(refreshHealth, 15000);
-    return () => clearInterval(t);
+  // Loads everything. Runs on start, whenever the event stream (re)connects and
+  // when the backend comes back after being offline, so a page opened while the
+  // server was down fills in by itself instead of staying empty.
+  const refreshAll = useCallback(async () => {
+    const [g, docs, recent] = await Promise.all([getGuardConfig(), getDocuments(), getRecentDecisions()]);
+    if (g) setGuardState(g);
+    if (docs) setDocuments(docs);
+    if (recent) setEvents(recent.map((d, i) => ({ ...d, _k: `srv-${d.request_id}-${d.ts}-${i}` })));
+    await Promise.all([refreshHealth(), refreshApprovals(), refreshIncidents(), refreshResults(), refreshPolicy()]);
   }, [refreshHealth, refreshApprovals, refreshIncidents, refreshResults, refreshPolicy]);
+
+  const wasOnline = useRef(null);
+  useEffect(() => {
+    refreshAll();
+    const t = setInterval(async () => {
+      const h = await checkHealth();
+      setHealth(h);
+      if (h?.ok && wasOnline.current === false) refreshAll();
+      wasOnline.current = !!h?.ok;
+    }, 5000);
+    return () => clearInterval(t);
+  }, [refreshAll]);
+
+  const refreshAllRef = useRef(refreshAll);
+  refreshAllRef.current = refreshAll;
 
   // live stream
   useEffect(() => subscribeToStream(({ type, data }) => {
     if (!data) return;
-    if (type === 'hello' || type === 'guard_changed') setGuardState(data);
+    if (type === 'hello') { setGuardState(data); refreshAllRef.current?.(); } // (re)connected: reload
+    else if (type === 'guard_changed') setGuardState(data);
     else if (type === 'decision') setEvents((e) => [{ ...data, _k: `${Date.now()}-${Math.random()}` }, ...e].slice(0, MAX_EVENTS));
     else if (type === 'incident') {
       setIncidents((list) => [data, ...list.filter((i) => i.id !== data.id)]);
@@ -91,8 +102,8 @@ export function ConsoleProvider({ children }) {
       setApprovals((list) => list.filter((a) => a.id !== data.id));
       setResolved((list) => [data, ...list.filter((a) => a.id !== data.id)]);
     } else if (type === 'test_progress') setTestProgress((p) => [...p, data]);
-    else if (type === 'test_finished') { setTestFinished(data); refreshResults(); }
-  }, () => {}), [toast, refreshResults]);
+    else if (type === 'test_finished') { setTestFinished(data); refreshResults(); refreshIncidents(); }
+  }, () => {}), [toast, refreshResults, refreshIncidents]);
 
   // Always send the full config so another tab's change is never overwritten with stale values.
   const updateGuard = useCallback(async (patch) => {
