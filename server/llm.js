@@ -8,7 +8,7 @@
 // Two model slots: AGENT_MODEL runs the agent loop, JUDGE_MODEL does short
 // classifier/report calls. Temperature is always 0 for repeatable demos, and
 // DEMO_MODE=record|cached replays saved responses (see llmCache.js).
-import { withCache, cacheInfo } from './llmCache.js';
+import { withCache, cacheInfo, CacheMissError } from './llmCache.js';
 
 export class LLMError extends Error {}
 
@@ -24,10 +24,15 @@ export function llmInfo() {
   return { provider: provider(), agent_model: agentModel(), judge_model: judgeModel(), ...cacheInfo() };
 }
 
-function callProvider({ messages, tools, model, json = false }) {
-  return withCache({ model, messages, tools, json }, () => (provider() === 'gemini'
-    ? geminiChat({ messages, tools, model, json })
-    : groqChat({ messages, tools, model, json })));
+async function callProvider({ messages, tools, model, json = false }) {
+  try {
+    return await withCache({ model, messages, tools, json }, () => (provider() === 'gemini'
+      ? geminiChat({ messages, tools, model, json })
+      : groqChat({ messages, tools, model, json })));
+  } catch (e) {
+    if (e instanceof CacheMissError) throw Object.assign(new LLMError(e.message), { cacheMiss: true });
+    throw e;
+  }
 }
 
 export async function chat({ messages, tools = [], model = agentModel() }) {

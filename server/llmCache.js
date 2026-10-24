@@ -7,7 +7,17 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { AsyncLocalStorage } from 'async_hooks';
 import { fileURLToPath } from 'url';
+
+// Replay-only scope: inside replayOnly(fn) every LLM call must come from the
+// cache, whatever DEMO_MODE is. A miss throws instead of calling the provider,
+// so Autopilot can promise zero live calls. The scope follows async work, so a
+// run paused for approval stays replay-only when it resumes.
+const replayScope = new AsyncLocalStorage();
+export const replayOnly = (fn) => replayScope.run(true, fn);
+export const isReplayOnly = () => replayScope.getStore() === true;
+export class CacheMissError extends Error {}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FILE = process.env.LLM_CACHE_FILE || path.join(__dirname, 'cache', 'llm_cache.json');
@@ -45,6 +55,11 @@ function keyFor({ model, messages, tools = [], json = false }) {
 
 // Wraps one provider call with the cache according to DEMO_MODE.
 export async function withCache(request, live) {
+  if (isReplayOnly()) {
+    const hit = load()[keyFor(request)];
+    if (!hit) throw new CacheMissError('This step is not in the demo cache, and replay-only mode makes no live LLM calls.');
+    return { ...hit, cached: true };
+  }
   const mode = demoMode();
   if (mode === 'live') return live();
   const key = keyFor(request);

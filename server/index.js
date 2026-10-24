@@ -16,8 +16,9 @@ import { listIncidents, getIncident, writeReport } from './guard/incidents.js';
 import { findHiddenSpans } from './guard/normalize.js';
 import { validatePolicy } from './guard/policy.js';
 import { bus } from './guard/events.js';
-import { runSuite, isRunning } from './tests/suite.js';
+import { runSuite, isRunning, loadCases } from './tests/suite.js';
 import { LLMError, llmInfo } from './llm.js';
+import { replayOnly } from './llmCache.js';
 import { chatView, metricsView } from './clientView.js';
 
 const app = express();
@@ -90,21 +91,28 @@ app.put('/api/policy', (req, res) => {
   writeJSON('policy.json', req.body);
   res.json(req.body);
 });
+// Dry-run validation for the policy editor; changes nothing.
+app.post('/api/policy/validate', (req, res) => {
+  const problems = validatePolicy(req.body);
+  res.json({ valid: problems.length === 0, problems });
+});
 
 // Evaluation: POST /api/tests/run { mode: off|enforce|both, pause_ms?, only?: [case ids] }
 // -> { off, on, cases, ... }. Resets the sandbox per case, so do not run it
 // during a live demo. Progress is streamed as test_progress events.
 app.post('/api/tests/run', async (req, res) => {
-  const { mode = 'both', pause_ms = 0, only = null, include_heldout = false } = req.body || {};
+  const { mode = 'both', pause_ms = 0, only = null, include_heldout = false, replay = false } = req.body || {};
   if (include_heldout) return res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' });
   const modes = { off: ['off'], enforce: ['enforce'], both: ['off', 'enforce'] }[mode];
   if (!modes) return res.status(400).json({ error: 'mode must be off, enforce or both' });
   if (isRunning()) return res.status(409).json({ error: 'A test run is already in progress' });
   try {
-    const result = await runSuite({
+    // replay: true answers every case from the demo cache only (misses are listed as errors)
+    const go = () => runSuite({
       modes, only, pauseMs: Math.min(Number(pause_ms) || 0, 60000),
       onProgress: (p) => bus.emit('test_progress', p),
     });
+    const result = await (replay === true ? replayOnly(go) : go());
     bus.emit('test_finished', { off: result.off, on: result.on, finished: result.finished });
     res.json(result);
   } catch (e) {
@@ -124,7 +132,12 @@ app.get('/api/tests/latest', (req, res) => {
 });
 // Metrics tab data from the last saved run; unmeasured values are null.
 app.get('/api/metrics', (req, res) => res.json(metricsView(latestRun())));
-app.post('/api/tests/heldout', (req, res) => res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' }));
+// Case list for the Test Lab picker.
+app.get('/api/tests/cases', (req, res) => {
+  const { attacks, legit } = loadCases();
+  res.json([...attacks, ...legit].map((c) => ({ id: c.id, set: c.set, title: c.title, role: c.user?.role })));
+});
+app.post('/api/tests/heldout',(req, res) => res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' }));
 
 // Documents the user can attach. hidden_spans lets the UI highlight hidden text.
 app.get('/api/documents', (req, res) => {
@@ -178,7 +191,9 @@ app.post('/api/chat', async (req, res) => {
     currentApproval = id;
   };
 
-  const run = runAgent({ user, message, doc_ids, guard, session, trace, onApproval });
+  // replay: true = answer only from the demo cache, never call the LLM (Autopilot)
+  const start = () => runAgent({ user, message, doc_ids, guard, session, trace, onApproval });
+  const run = req.body.replay === true ? replayOnly(start) : start();
   run.then(
     (result) => currentApproval && attachResult(currentApproval, result),
     (e) => currentApproval && attachResult(currentApproval, failure(e).body),
@@ -207,7 +222,10 @@ function failure(e) {
     status: e instanceof LLMError ? 503 : 500,
     body: {
       error: e.message,
-      reply: 'NimbusAssist is unavailable right now (the language model could not be reached). Please try again.',
+      reply: e.cacheMiss
+        ? 'This request is not in the demo cache, so replay-only mode stopped instead of calling the language model.'
+        : 'NimbusAssist is unavailable right now (the language model could not be reached). Please try again.',
+      cache_miss: !!e.cacheMiss,
       decisions: [], steps: [],
     },
   };
