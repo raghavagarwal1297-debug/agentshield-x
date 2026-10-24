@@ -193,11 +193,11 @@ export async function getPolicy() {
   return { ...localPolicy };
 }
 
-export async function updatePolicy(newPolicy) {
+// userId: who is saving; the server only accepts an admin, and
+// ALLOW_POLICY_EDIT=false turns editing off entirely.
+export async function updatePolicy(newPolicy, userId = 'admin_riya') {
   if (activeSource === 'live') {
-    // The policy editor is an admin screen; the server checks this header and
-    // ALLOW_POLICY_EDIT=false turns editing off entirely.
-    return liveRequest('/api/policy', jsonPost(newPolicy, 'PUT', { 'X-User-Id': 'admin_riya' }));
+    return liveRequest('/api/policy', jsonPost(newPolicy, 'PUT', { 'X-User-Id': userId }));
   }
   localPolicy = JSON.parse(JSON.stringify(newPolicy));
   return { ...localPolicy };

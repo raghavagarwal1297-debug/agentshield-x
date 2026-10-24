@@ -286,9 +286,6 @@
 .toast.info .t { color: var(--cyan); }
 @keyframes toast-in { from { transform: translateY(8px); opacity: 0; } }
 
-/* temporary host for tabs that still use the old components */
-.legacy { flex: 1; min-height: 0; overflow: auto; margin: var(--gap) var(--gutter); }
-
 /* ---------- responsive ---------- */
 @media (max-width: 1279px) {
   .cx { position: static; min-height: 100vh; }

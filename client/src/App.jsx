@@ -10,13 +10,7 @@ import Investigate from './console/tabs/Investigate.jsx';
 import Approvals from './console/tabs/Approvals.jsx';
 import Results from './console/tabs/Results.jsx';
 import TestLab from './console/tabs/TestLab.jsx';
-
-// Previous dashboard screens, hosted until each tab is rebuilt.
-import PolicyTab from './components/PolicyTab.jsx';
-
-function Legacy({ children }) {
-  return <div className="legacy">{children}</div>;
-}
+import Policy from './console/tabs/Policy.jsx';
 
 function ActiveTab() {
   const c = useConsole();
@@ -30,7 +24,7 @@ function ActiveTab() {
     case 'testlab':
       return <TestLab />;
     case 'policy':
-      return <Legacy><PolicyTab policy={c.policy} onPolicyUpdated={c.setPolicy} /></Legacy>;
+      return <Policy />;
     default:
       return null; // MISSION stays mounted below
   }

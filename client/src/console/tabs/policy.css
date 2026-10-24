@@ -1,0 +1,28 @@
+/* POLICY tab */
+.pol-nav .row { padding: 9px 12px; }
+.pol-note { font-size: 13.5px; margin-top: 10px; }
+.pol-centre { height: 100%; }
+.pol-read { padding-bottom: 20px; }
+.cx .pol-h { font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--cyan); margin: 22px 0 8px; scroll-margin-top: 8px; }
+.pol-read > .pol-h:first-child { margin-top: 0; }
+.pol-scroll { overflow-x: auto; }
+.pol-table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+.pol-table th { text-align: left; font-family: var(--f-mono); font-weight: 500; font-size: 10.5px; letter-spacing: 0.08em; color: var(--text-dim); text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.pol-table td { padding: 7px 8px; border-bottom: 1px solid rgba(26, 53, 80, 0.45); vertical-align: top; }
+.matrix-tools td.yes, .matrix-tools td.no { text-align: center; font-family: var(--f-mono); }
+.matrix-tools td.yes { color: var(--cyan); }
+.matrix-tools td.no { color: var(--grey); }
+.matrix-tools th { text-align: center; }
+.matrix-tools th:first-child { text-align: left; }
+.pol-table td.fields { font-family: var(--f-mono); font-size: 12.5px; }
+.pol-kv { display: grid; grid-template-columns: 130px 1fr; gap: 10px; align-items: center; padding: 6px 0; font-size: 14.5px; }
+.pol-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pol-chip { margin: 0 6px 4px 0; }
+
+.pol-editor { display: grid; grid-template-columns: auto 1fr; height: 100%; min-height: 420px; border: 1px solid var(--line); background: rgba(6, 18, 31, 0.7); }
+.pol-gutter { margin: 0; padding: 10px 8px; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6; color: var(--grey); text-align: right; overflow: hidden; user-select: none; border-right: 1px solid var(--line); }
+.pol-text { margin: 0; padding: 10px 12px; font-family: var(--f-mono); font-size: 12.5px; line-height: 1.6; color: #fff; background: transparent; border: 0; resize: none; outline: none; white-space: pre; overflow: auto; tab-size: 2; }
+.pol-changes { display: flex; flex-direction: column; gap: 12px; font-size: 15px; }
+.pol-changes > span > button { width: 100%; }
+.pol-changes > span { width: 100%; }
+.pol-problems { margin: 4px 0 0; padding-left: 18px; font-size: 14px; color: #fff; }
