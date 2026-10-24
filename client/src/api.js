@@ -770,6 +770,11 @@ export async function getTestCases() {
   return [];
 }
 
+export async function getHeldoutStatus() {
+  if (activeSource === 'live') return liveRead('/api/tests/heldout');
+  return { available: false, reason: 'Held-out set not available in mock mode.' };
+}
+
 export async function validatePolicy(policy) {
   if (activeSource === 'live') return liveRequest('/api/policy/validate', jsonPost(policy));
   return { valid: true, problems: [] };

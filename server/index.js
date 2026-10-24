@@ -137,7 +137,11 @@ app.get('/api/tests/cases', (req, res) => {
   const { attacks, legit } = loadCases();
   res.json([...attacks, ...legit].map((c) => ({ id: c.id, set: c.set, title: c.title, role: c.user?.role })));
 });
-app.post('/api/tests/heldout',(req, res) => res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' }));
+// Held-out set status for the Test Lab, so the page need not make a failing call to ask.
+app.get('/api/tests/heldout', (req, res) => {
+  res.json({ available: false, reason: 'The held-out set is not available yet (tests/heldout.json pending).' });
+});
+app.post('/api/tests/heldout', (req, res) => res.status(400).json({ error: 'The held-out set is not available yet (tests/heldout.json pending).' }));
 
 // Documents the user can attach. hidden_spans lets the UI highlight hidden text.
 app.get('/api/documents', (req, res) => {

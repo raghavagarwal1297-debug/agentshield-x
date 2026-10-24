@@ -9,9 +9,9 @@ import Mission from './console/tabs/Mission.jsx';
 import Investigate from './console/tabs/Investigate.jsx';
 import Approvals from './console/tabs/Approvals.jsx';
 import Results from './console/tabs/Results.jsx';
+import TestLab from './console/tabs/TestLab.jsx';
 
 // Previous dashboard screens, hosted until each tab is rebuilt.
-import MetricsTab from './components/MetricsTab.jsx';
 import PolicyTab from './components/PolicyTab.jsx';
 
 function Legacy({ children }) {
@@ -28,7 +28,7 @@ function ActiveTab() {
     case 'results':
       return <Results />;
     case 'testlab':
-      return <Legacy><MetricsTab metricsData={c.metrics} /></Legacy>;
+      return <TestLab />;
     case 'policy':
       return <Legacy><PolicyTab policy={c.policy} onPolicyUpdated={c.setPolicy} /></Legacy>;
     default:
