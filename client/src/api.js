@@ -135,9 +135,10 @@ export async function getDocuments() {
 // -------------------------------------------------------------
 // 5. Approvals
 // -------------------------------------------------------------
-export async function getApprovals() {
-  if (activeSource === 'live') return liveRead('/api/approvals');
-  return [...localApprovals];
+// status: 'pending' (default), 'approved', 'rejected', or '' for all
+export async function getApprovals(status = 'pending') {
+  if (activeSource === 'live') return liveRead(`/api/approvals?status=${status}`);
+  return localApprovals.filter((a) => !status || a.status === status);
 }
 
 export async function resolveApproval(id, decision, by = 'admin_riya') {
@@ -209,9 +210,10 @@ export async function getMetrics() {
   return { ...mockMetrics };
 }
 
-export async function runTestSuite(mode = 'both') {
-  // pause between cases so the Groq free tier is not rate limited
-  if (activeSource === 'live') return liveRequest('/api/tests/run', jsonPost({ mode, pause_ms: 8000 }));
+// options: { only: [case ids], pause_ms, replay } - pause between cases so the
+// Groq free tier is not rate limited; replay answers from the demo cache only.
+export async function runTestSuite(mode = 'both', options = {}) {
+  if (activeSource === 'live') return liveRequest('/api/tests/run', jsonPost({ mode, pause_ms: 8000, ...options }));
 
   // Realistic mock test run result matching section 10
   return {
@@ -274,13 +276,14 @@ export async function runHeldoutTests() {
 // -------------------------------------------------------------
 // App.jsx calls this with { message, role_id, documents }; the server wants
 // { user_id, message, doc_ids }. Both spellings are accepted.
-export async function sendChatMessage({ user_id, role_id, message, doc_ids, documents, timestamp }) {
+// replay: true = answer only from the server's demo cache (Autopilot; no LLM calls).
+export async function sendChatMessage({ user_id, role_id, message, doc_ids, documents, timestamp, replay = false }) {
   const eventTime = timestamp || new Date().toISOString();
   user_id = user_id || role_id;
   doc_ids = doc_ids || documents || [];
 
   if (activeSource === 'live') {
-    const data = await liveRequest('/api/chat', jsonPost({ user_id, message, doc_ids }));
+    const data = await liveRequest('/api/chat', jsonPost({ user_id, message, doc_ids, replay }));
     if (data.decisions) data.decisions = data.decisions.map(d => ({ ...d, ts: eventTime }));
     return data;
   }
@@ -748,6 +751,29 @@ export async function sendChatMessage({ user_id, role_id, message, doc_ids, docu
 // -------------------------------------------------------------
 // 10. Server-Sent Events (SSE) Stream
 // -------------------------------------------------------------
+// -------------------------------------------------------------
+// 11. Endpoints used by the redesigned tabs (live only; mock returns null/[])
+// -------------------------------------------------------------
+export async function getDocument(id) {
+  if (activeSource === 'live') return liveRead(`/api/documents/${encodeURIComponent(id)}`);
+  return mockDocuments.find((d) => d.id === id) || null;
+}
+
+export async function getLatestRun() {
+  if (activeSource === 'live') return liveRead('/api/tests/latest');
+  return null;
+}
+
+export async function getTestCases() {
+  if (activeSource === 'live') return (await liveRead('/api/tests/cases')) || [];
+  return [];
+}
+
+export async function validatePolicy(policy) {
+  if (activeSource === 'live') return liveRequest('/api/policy/validate', jsonPost(policy));
+  return { valid: true, problems: [] };
+}
+
 export function subscribeToStream(onEvent, onError) {
   if (activeSource === 'live') {
     try {
@@ -760,10 +786,9 @@ export function subscribeToStream(onEvent, onError) {
           onEvent({ raw: e.data });
         }
       };
-      eventSource.addEventListener('decision', (e) => onEvent({ type: 'decision', data: JSON.parse(e.data) }));
-      eventSource.addEventListener('incident', (e) => onEvent({ type: 'incident', data: JSON.parse(e.data) }));
-      eventSource.addEventListener('approval_created', (e) => onEvent({ type: 'approval_created', data: JSON.parse(e.data) }));
-      eventSource.addEventListener('approval_resolved', (e) => onEvent({ type: 'approval_resolved', data: JSON.parse(e.data) }));
+      for (const type of ['hello', 'decision', 'incident', 'approval_created', 'approval_resolved', 'guard_changed', 'test_progress', 'test_finished']) {
+        eventSource.addEventListener(type, (e) => onEvent({ type, data: JSON.parse(e.data) }));
+      }
       eventSource.onerror = (err) => {
         if (onError) onError(err);
       };
