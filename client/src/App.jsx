@@ -7,10 +7,9 @@ import Ticker from './console/Ticker.jsx';
 import Toasts from './console/Toasts.jsx';
 import Mission from './console/tabs/Mission.jsx';
 import Investigate from './console/tabs/Investigate.jsx';
-import { resolveApproval } from './api.js';
+import Approvals from './console/tabs/Approvals.jsx';
 
 // Previous dashboard screens, hosted until each tab is rebuilt.
-import ApprovalsTab from './components/ApprovalsTab.jsx';
 import MetricsTab from './components/MetricsTab.jsx';
 import PolicyTab from './components/PolicyTab.jsx';
 
@@ -24,12 +23,7 @@ function ActiveTab() {
     case 'investigate':
       return <Investigate />;
     case 'approvals':
-      return (
-        <Legacy>
-          <ApprovalsTab approvals={c.approvals} currentRole={c.user}
-            onResolveApproval={async (id, decision) => { await resolveApproval(id, decision, c.user.id); c.refreshApprovals(); }} />
-        </Legacy>
-      );
+      return <Approvals />;
     case 'results':
     case 'testlab':
       return <Legacy><MetricsTab metricsData={c.metrics} /></Legacy>;

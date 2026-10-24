@@ -1,0 +1,15 @@
+/* APPROVALS tab */
+.appr-sub { margin: 18px 0 4px; font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--text-dim); }
+.row.resolved .rid, .row.resolved .rtype { opacity: 0.7; }
+.appr-main { display: flex; flex-direction: column; gap: 14px; }
+.appr-hero { border: 1px solid rgba(246, 181, 32, 0.45); background: linear-gradient(180deg, rgba(246, 181, 32, 0.08), transparent); padding: 16px 18px; }
+.appr-tool { font-size: 12px; letter-spacing: 0.14em; color: var(--amber); text-transform: uppercase; }
+.appr-what { font-family: var(--f-display); font-weight: 700; font-size: 28px; color: #fff; margin: 4px 0 6px; }
+.appr-h { font-family: var(--f-display); font-weight: 600; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--cyan); }
+.appr-decide { display: flex; flex-direction: column; gap: 12px; }
+.appr-decide > span { width: 100%; }
+.appr-decide > span > button { width: 100%; }
+.appr-decide .confirm { left: 0; right: auto; width: 100%; }
+.appr-reject { padding: 12px 16px; font-size: 16px; }
+.appr-hint { font-size: 14px; }
+.appr-verdict { font-family: var(--f-display); font-weight: 700; font-size: 34px; letter-spacing: 0.08em; }
