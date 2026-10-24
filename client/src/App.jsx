@@ -6,10 +6,10 @@ import Header from './console/Header.jsx';
 import Ticker from './console/Ticker.jsx';
 import Toasts from './console/Toasts.jsx';
 import Mission from './console/tabs/Mission.jsx';
+import Investigate from './console/tabs/Investigate.jsx';
 import { resolveApproval } from './api.js';
 
 // Previous dashboard screens, hosted until each tab is rebuilt.
-import IncidentsTab from './components/IncidentsTab.jsx';
 import ApprovalsTab from './components/ApprovalsTab.jsx';
 import MetricsTab from './components/MetricsTab.jsx';
 import PolicyTab from './components/PolicyTab.jsx';
@@ -22,7 +22,7 @@ function ActiveTab() {
   const c = useConsole();
   switch (c.tab) {
     case 'investigate':
-      return <Legacy><IncidentsTab incidents={c.incidents} /></Legacy>;
+      return <Investigate />;
     case 'approvals':
       return (
         <Legacy>
