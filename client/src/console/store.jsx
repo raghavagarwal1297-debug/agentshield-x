@@ -3,7 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import {
   checkHealth, getGuardConfig, setGuardConfig, resetSandbox, getDocuments, getApprovals,
-  getIncidents, getPolicy, getMetrics, getLatestRun, subscribeToStream,
+  getIncidents, getPolicy, getMetrics, getLatestRun, subscribeToStream, resolveApproval,
 } from '../api.js';
 import { USERS } from './format.js';
 import { beep } from './sound.js';
@@ -131,6 +131,23 @@ export function ConsoleProvider({ children }) {
 
   const openIncident = useCallback((id) => { setFocusIncident(id); setTab('investigate'); }, []);
 
+  // Approve / reject from any tab. The resumed run's final answer is kept per
+  // approval id so the Mission tab can show it wherever the decision was made.
+  const [approvalResults, setApprovalResults] = useState({});
+  const decideApproval = useCallback(async (id, decision) => {
+    try {
+      const res = await resolveApproval(id, decision, user.id);
+      setApprovalResults((m) => ({ ...m, [id]: { decision, approval: res.approval, result: res.result } }));
+      refreshApprovals();
+      refreshIncidents();
+      return res;
+    } catch (e) {
+      toast('block', `Could not ${decision} ${id}`, e.message);
+      refreshApprovals();
+      return null;
+    }
+  }, [user.id, refreshApprovals, refreshIncidents, toast]);
+
   // Autopilot: the Mission tab registers a runner { start, stop }; the header
   // button is enabled only while one is registered.
   const runner = useRef(null);
@@ -150,6 +167,7 @@ export function ConsoleProvider({ children }) {
     toasts, toast, muted, toggleMuted, reset, focusIncident, setFocusIncident, openIncident,
     refreshApprovals, refreshIncidents, refreshResults, refreshPolicy, ALL_ON,
     autopilot, registerAutopilot, startAutopilot, stopAutopilot, setAutopilotRunning,
+    approvalResults, decideApproval,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

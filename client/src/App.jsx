@@ -5,7 +5,7 @@ import { ConsoleProvider, useConsole } from './console/store.jsx';
 import Header from './console/Header.jsx';
 import Ticker from './console/Ticker.jsx';
 import Toasts from './console/Toasts.jsx';
-import { Panel } from './console/ui.jsx';
+import Mission from './console/tabs/Mission.jsx';
 import { resolveApproval } from './api.js';
 
 // Previous dashboard screens, hosted until each tab is rebuilt.
@@ -36,14 +36,14 @@ function ActiveTab() {
     case 'policy':
       return <Legacy><PolicyTab policy={c.policy} onPolicyUpdated={c.setPolicy} /></Legacy>;
     default:
-      return (
-        <div className="cx-body">
-          <div className="cx-col"><Panel title="Mission" titleClass="cyan" className="fill"><p className="empty">The guided demo is being rebuilt.</p></Panel></div>
-          <div className="cx-col"><Panel className="fill" /></div>
-          <div className="cx-col right"><Panel title="Terminal" meta="nimbus@guard" className="fill" /><Panel title="Alerts" meta={c.incidents.length} className="fill" /></div>
-        </div>
-      );
+      return null; // MISSION stays mounted below
   }
+}
+
+// Mission keeps its conversation and a running Autopilot while other tabs are open.
+function MissionHost() {
+  const { tab } = useConsole();
+  return <div className="tab-host" hidden={tab !== 'mission'}><Mission /></div>;
 }
 
 export default function App() {
@@ -51,6 +51,7 @@ export default function App() {
     <ConsoleProvider>
       <div className="cx">
         <Header />
+        <MissionHost />
         <ActiveTab />
         <Ticker />
         <Toasts />

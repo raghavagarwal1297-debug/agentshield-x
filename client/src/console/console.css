@@ -63,8 +63,8 @@
 .cx *, .cx *::before, .cx *::after { box-sizing: border-box; }
 .cx h1, .cx h2, .cx h3, .cx h4 { font-family: var(--f-display); color: var(--text); letter-spacing: 0; margin: 0; }
 .cx p { margin: 0; line-height: 1.5; }
-.cx button { font: inherit; color: inherit; cursor: pointer; }
-.cx button:disabled { cursor: not-allowed; opacity: 0.45; }
+.cx :where(button) { font: inherit; color: inherit; cursor: pointer; }
+.cx :where(button):disabled { cursor: not-allowed; opacity: 0.45; }
 .cx :focus-visible { outline: 1px solid var(--bracket); outline-offset: 2px; }
 .cx ::-webkit-scrollbar { width: 8px; height: 8px; }
 .cx ::-webkit-scrollbar-thumb { background: var(--line); }
@@ -309,3 +309,8 @@
   .term .caret { animation: none; }
   .toast { animation: none; }
 }
+
+/* tab host keeps a tab mounted while hidden */
+.tab-host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tab-host[hidden] { display: none; }
+.tab-host > .cx-body { flex: 1; min-height: 0; }

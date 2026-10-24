@@ -160,9 +160,11 @@ app.get('/api/documents/:id', (req, res) => {
 });
 
 // Restores all sandbox data files to their original state and clears sessions.
+// ?keep=incidents keeps the incident log.
 app.get('/api/reset', (req, res) => {
-  resetAll();
-  res.json({ ok: true });
+  const keepIncidents = req.query.keep === 'incidents';
+  resetAll({ keepIncidents });
+  res.json({ ok: true, kept_incidents: keepIncidents });
 });
 
 // POST /api/chat { user_id, message, doc_ids?, session_id? } -> { reply, decisions, steps, ... }
@@ -176,7 +178,7 @@ app.post('/api/chat', async (req, res) => {
 
   const session = getSession(user.id, session_id);
   const trace = {};
-  const snapshot = (extra) => ({ decisions: [...trace.decisions], steps: [...trace.steps], session: session.id, ...extra });
+  const snapshot = (extra) => ({ decisions: [...trace.decisions], steps: [...trace.steps], session: session.id, request_id: trace.request_id, ...extra });
 
   // If a tool call needs approval we answer right away with pending_approval_id;
   // the paused run keeps going in the background and its final result is

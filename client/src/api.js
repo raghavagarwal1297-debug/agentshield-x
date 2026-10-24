@@ -115,12 +115,13 @@ export async function setGuardConfig(config) {
 // -------------------------------------------------------------
 // 3. Reset Sandbox
 // -------------------------------------------------------------
-export async function resetSandbox() {
+// keepIncidents: restore data, sessions and approvals but keep the incident log
+export async function resetSandbox({ keepIncidents = false } = {}) {
   localIncidents = [...mockIncidents];
   localApprovals = [...mockApprovals];
   localPolicy = JSON.parse(JSON.stringify(mockPolicy));
 
-  if (activeSource === 'live') return liveRequest('/api/reset');
+  if (activeSource === 'live') return liveRequest(keepIncidents ? '/api/reset?keep=incidents' : '/api/reset');
   return { ok: true, message: 'Sandbox data files restored to seed state.' };
 }
 

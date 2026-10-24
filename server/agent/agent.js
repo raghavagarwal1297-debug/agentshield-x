@@ -26,7 +26,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
   const decisions = (trace.decisions ||= []);
   const steps = (trace.steps ||= []);
   const rejected = new Set(); // tools a human rejected in this run
-  let pending_approval_id;
+  const approval_ids = []; // approvals decided during this run (the run only ends after a decision)
 
   // Log the decision without payload fields (content/output/text/approval).
   const record = (d, extra = {}) => {
@@ -35,7 +35,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
     decisions.push(dec);
     return dec;
   };
-  const done = (reply) => ({ reply, decisions, steps, session: session.id, request_id, pending_approval_id });
+  const done = (reply) => ({ reply, decisions, steps, session: session.id, request_id, approval_ids });
 
   // 1. Input checkpoint
   const inputDec = record(await guard.checkInput({ user, message, session, request_id }));
@@ -80,7 +80,7 @@ export async function runAgent({ user, message, doc_ids = [], guard, session, tr
         onApproval: (id) => { stepInfo.outcome = 'NEEDS_APPROVAL'; stepInfo.approval_id = id; onApproval?.(id); },
       });
       stepInfo.outcome = result.outcome;
-      if (result.pending_approval_id) pending_approval_id = result.pending_approval_id;
+      if (result.pending_approval_id) approval_ids.push(result.pending_approval_id);
       stepInfo.result_preview = JSON.stringify(result.output).slice(0, 300);
       messages.push({ role: 'tool', tool_call_id: call.id, name: call.name, content: JSON.stringify(result.output) });
     }
